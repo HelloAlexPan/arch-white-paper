@@ -1,0 +1,1008 @@
+\documentclass{article}
+% Auto-build test comment - SAVE THIS FILE TO TEST
+
+\usepackage{amsmath}
+\usepackage{amssymb}    % For \checkmark, \texttimes, etc.
+\usepackage[table]{xcolor} % For cell colors in table, and \yesmark, \nomark
+\usepackage{array}      % For better column definitions in tables
+\usepackage{booktabs}   % For professional-looking tables (\toprule, \midrule, \bottomrule)
+\usepackage{caption}    % For table captions
+\usepackage{graphicx}   % For \resizebox
+\usepackage{makecell}   % For \makecell
+\usepackage{enumitem}   % For custom enumerate labels
+
+\PassOptionsToPackage{table}{xcolor}
+\usepackage{xcolor}  % loads xcolor with the table option
+
+% Load inputenc and fontenc early
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usepackage{neurips_2025}
+
+\usepackage{svg}
+\usepackage{float}
+
+\usepackage{array}
+
+\usepackage{siunitx}
+% \sisetup{detect-all} % Deprecated
+\sisetup{ % Modern siunitx font detection
+    mode = match,
+    propagate-math-font = true,
+    reset-math-version = false,
+    reset-text-family = false,
+    reset-text-series = false,
+    reset-text-shape = false,
+    text-family-to-math = true,
+    text-series-to-math = true
+}
+
+\usepackage{url,booktabs,amsfonts,nicefrac,microtype,xcolor}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+    citecolor=blue, % Color for citations
+}
+
+% for table
+\usepackage{array}
+\usepackage{amssymb}    % \checkmark
+\usepackage{graphicx}   % \resizebox
+\usepackage{makecell}
+
+% --- column types ---
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}m{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}m{#1}}
+
+% yes/no marks
+\newcommand{\yesmark}{{\color{green!60!black}\checkmark}}
+\newcommand{\nomark}{{\color{red}$\times$}}
+\newcommand{\somewhatmark}{{\color{orange}$\approx$}}
+
+
+% Define \ListOpsparams
+\newcommand{\ListOpsparams}{(a maximum of 8 operations, a minimum arity of 4, and a maximum branching factor of 8 of the ListOps problem being narrativized)}
+
+\usepackage{natbib}
+\setcitestyle{authoryear,open={(},close={)}} % For (Author, Year) style citations
+
+\title{Context Is Not Comprehension}
+
+\author{
+  Alex Pan$^{*}$\\
+  Founder, Edictive
+  \\[1em]
+  Dacheng Tao$^{*}$\\
+  Distinguished Professor, College of Computing \& Data Science\\
+  Nanyang Technological University
+  \\[1em]
+  Mary-Anne Williams$^{*}$\\
+  UNSW Business School \& UNSW AI Institute\\
+  University of New South Wales
+}
+
+\date{}  % omit the date
+
+\begin{document}
+\begingroup
+\renewcommand\thefootnote{}
+\footnotetext{$^{*}$ z5060939@zmail.unsw.edu.au, dtao@ntu.edu.sg, mary-anne.williams@unsw.edu.au}
+\endgroup
+\maketitle
+\begin{abstract}
+  Evaluating Large Language Models (LLMs) typically focuses on recalling explicit facts from lengthy inputs, neglecting their capacity for maintaining intermediate reasoning states. We introduce Verbose ListOps (VLO), embedding deterministic ListOps tasks into coherent narratives to assess a model's ability to (a) solve hidden sub-problems, (b) retain their results internally, and (c) reuse them subsequently. VLO annotates every intermediate step, both concealing their values and enabling diagnosis of where a model's reasoning first diverges. As ListOps complexity and narrative length are independent knobs, researchers can vary reasoning difficulty without confounding context length. Initial results show state-of-the-art LLMs that score $\approx 100\%$ on raw ListOps collapse to $\leq 55\%$ on VLO at just 10k tokens. Task-agnostic, VLO's generation pipeline integrates any deterministic reasoning graph—symbolic, abductive, or defeasible—into narrative form, providing a reusable framework for future reasoning-centric model evaluation.
+\end{abstract}
+
+\section{Introduction}
+Even with million-token context windows, modern LLMs still falter on human-solvable multi-step reasoning tasks that demand filtering distractions and caching intermediate results for later synthesis \citep{IllusionOfThinking, shi2023large}. This ability is routine for all knowledge workers, from lawyers parsing clauses to sales managers distilling intent from chatty transcripts, yet benchmarks rarely measure it. Existing long-context suites chiefly test factual recall in `needle-in-a-haystack' settings or shallow reading comprehension \citep{longreason}. They do not control reasoning depth or hide intermediate answers, so models can succeed via pattern matching rather than reasoning \citep{IllusionOfThinking}.
+
+Building on ListOps, we bridge this gap by introducing Verbose ListOps (VLO); a novel benchmark that isolates this ability in a controlled setting, challenging models to reason, not just locate information. ListOps \citep{listops} is a benchmark where models perform nested arithmetic operations on integer sequences in a tree structure; for example, \texttt{[MAX 3 7 [MIN 1 9 5] 2]} requires computing the inner \texttt{MIN} first, then finding the maximum among all values. VLO converts each ListOps node into a short story fragment, hides every intermediate value behind a `narrative anchor', and adds semantically related distractors. The resulting benchmark is a highly realistic reasoning task that forces a model to compute, cache, and reuse internal states.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=1\textwidth]{ListOps-illustration_svg-tex.pdf}
+  \caption{VLO embeds ListOps problems in a narrative, forcing LLMs to find and solve each subproblem, track intermediate states, and ignore distractors for the final answer, emulating complex human text synthesis. \textbf{Takeaway:} VLO reveals LLMs needs more than just long-context processing. They must compute within distracting narratives where intermediate results remain implicit.}
+  \label{fig:ListOps_customization}
+\end{figure}
+
+In this paper, we provide three key contributions:
+
+\begin{enumerate}
+  \item \textbf{A broadly-applicable, agentic generation framework.}
+        We open-source a generation pipeline capable of embedding \emph{any} deterministically-verifiable reasoning graph, including arithmetic ListOps and symbolic, abductive, inductive, or defeasible logic (see Appendix~\ref{sec:extending_VLO}, \textit{Extending VLO for Other Reasoning Types / Non-Numeric Reasoning}). The framework independently controls context length and reasoning difficulty through hyperparameters like tree depth, operator arity and distraction density.
+  \item \textbf{VLO: A first instantiation of the framework.}
+        Using this pipeline, we introduce VLO, a benchmark that narrativizes nested ListOps computations. VLO is the first long-context dataset to (i) hide all intermediate results, (ii) independently control context length and reasoning depth, and (iii) provide exact intermediate-step labels for systematic failure-mode analysis.
+  \item \textbf{A diagnostic evaluation toolkit and empirical study.}
+        We release scripts to verify correctness at each anchor step, plot error-propagation curves, and compare prompting strategies. Applying this toolkit to ten prominent LLMs reveals a consistent blind spot: models proficient in raw ListOps or factual recall frequently diverge at the first hidden step when the same logic is narratively camouflaged.*\textit{(WIP)}
+\end{enumerate}
+
+\noindent\hspace{3.5em}\begin{minipage}{\dimexpr\textwidth-3.5em}
+  \emph{Together, the framework and toolkit turn VLO from a one-off dataset into a reusable test-bed to evaluate any future long-context reasoning architecture.}
+\end{minipage}
+
+Our experiments show state-of-the-art LLMs, despite solving ListOps with ease, on VLO, suffer a \textbf{severe ($\approx$50\%+) drop in accuracy at just $\approx$10k-token contexts}. The result exposes an under-tested limitation: LLMs struggle to synthesize multi-step conclusions amongst narrative distraction. VLO offers a rigorous, open-source tool for diagnosing (and improving) this foundational capability, seeking to move discussion beyond simply enlarging context windows.
+
+\section{Related Work}
+Modern evaluation of long-context language models has split into three threads:
+
+\begin{enumerate}
+  \item Benchmarks that test \textit{recall} in million-token contexts,
+  \item Corpora that supervise or critique \textit{explicit} chains of thought, and
+  \item Emerging \textit{reasoning paradigms}—prompting tricks, new architectures, and process-reward models that claim to mitigate reasoning weaknesses.
+\end{enumerate}
+
+VLO sits at the intersection: it embeds a deterministic computation inside narrative camouflage for diagnosis of whether a model's internal reasoning survives long stretches of realistic text.
+
+We survey these three threads (\ref{subsec:long-context-benchmarks}–\ref{subsec:advanced-reasoning}) and then map their open problems to VLO's design choices.
+
+\subsection{Long context benchmarks: from recall to latent-structure reasoning}
+\label{subsec:long-context-benchmarks}
+Early work such as SCROLLS (\citeyear{scrolls}) simply stretched classic NLP tasks to longer documents, failing to fully probe today's million-token models \citep{longbench2,gemini_15,gpt-41-docs}.  More recent work falls into four clusters.
+
+\begin{enumerate}
+  \item \textbf{Recall-only "needle-in-a-haystack" tasks.}
+        MRCR (\citeyear{Michelangelo}) inserts a "needle" sentence into thousands of distractor tokens and ask models to copy it back. These tasks expose attention failures but cannot reveal whether the answer was reasoned to correctly or a product of pattern-matching \citep{IllusionOfThinking}.
+
+  \item \textbf{Synthetic algorithmic reasoning.}
+        ListOps (\citeyear{listops}), RULER (\citeyear{ruler}) and LongReason (\citeyear{longreason}) build tree-structured arithmetic or logical programs whose solutions can be verified automatically. They offer precise control over depth and branching, yet their narratives are minimal or non-semantically relevant, so there is little distraction from the computation itself.
+
+  \item \textbf{`Latent-structure' reasoning.}
+        The adoption of `Large Reasoning Models' has led to benchmarks that test reasoning amongst realistic distractors. Michelangelo (\citeyear{Michelangelo}) introduces `Latent Structure Queries' where models compute an implicit state from distributed operations, such as tracking a list through code. NeedleBench (\citeyear{needlebench}), ZeroSCROLLS (\citeyear{zeroscrolls}), and LongBench v2 (\citeyear{longbench2}) do similar things, requiring models to synthesize distributed textual cues to produce a single correct output. However, in all cases, they evaluate only the final outcome, lacking supervision for intermediate reasoning steps, and lack realism.
+  \item \textbf{Human-authored long documents.}
+        $\infty$Bench (\citeyear{infinitebench}) blends ultra-long single-document tasks drawn from novels, codebases and movie/TV scripts with separate synthetic retrieval items, whereas LooGLE (\citeyear{loogle}) builds on extra-long real-world documents for its single-document tasks. Realism is high, but task parameters (e.g. context length, distractor density, reasoning depth) cannot be disentangled cleanly.
+
+\end{enumerate}
+Ultimately, all current benchmarks underspecify how hidden states are tracked and rely heavily on n-gram metrics weakly correlated with human judgment \citep{l-eval}. In addition, such myopic focus on outcome accuracy masks how answers are derived.
+
+\subsection{Emerging reasoning paradigms}
+\label{subsec:advanced-reasoning}
+Recent work on enhancing multi-step reasoning leverages prompting scaffolds, architectural innovations, and new learning signals like process-reward models. These approaches target both \textsc{Explicit} (\emph{externalized}) and \textsc{Implicit} (\emph{internal}) computation, which VLO disentangles and evaluates.
+
+\begin{enumerate}
+  \item \textsc{Explicit} \textbf{Prompt-engineering scaffolds:}
+        Chain-of-Thought (\citeyear{chain-of-thought}) elicits linear explanations; Tree-of-Thoughts (\citeyear{treeofthoughts}) branches, prunes, and self-verifies. Both externalize state but add substantial token overhead.
+
+  \item \textbf{Architectural innovations:}
+        \begin{enumerate}
+          \item \textsc{Implicit} \textbf{Memory:} To address the token overhead of prompt-engineering scaffolds, recurrent-Memory Transformers \citep{rmt} compress each segment into a smaller set of memory tokens, whereas Latency-Aware Routing Transformers \citep{latencyawarerouting} reduces attention cost through content-based sparse routing without summarizing the sequence. However, both can silently lose or isolate critical intermediate state; something which is difficult to uncover.
+          \item \textsc{Implicit} \textbf{Concept Abstraction:} Large Concept Models \citep{lcm} embed `concepts' rather than raw tokens, tackling the token-based transformer's chronic weakness in long-range planning and discourse structure.
+          \item \textsc{Implicit/Explicit} \textbf{Large Reasoning Models (LRMs):} State-of-the-art systems such as DeepSeek-R1 \citep{DeepSeekR1} and Google's Gemini-2.5 family \citep{gemini_25_blog} pair sparse Mixture-of-Experts routing with built-in self-reflection mechanisms that revisit and refine their own chain-of-thought. Despite these advances, they can still drift into internally inconsistent story worlds over long narratives \citep{flawedfictions, lost-in-middle}.
+        \end{enumerate}
+  \item \textsc{Explicit} \textbf{Process Reward Models (PRMs):}
+        PRMs assign a numeric reward to \emph{each} intermediate reasoning step rather than just the final answer, so reinforcement learning preferentially keeps chains that stay correct throughout.  PRM800K \citep{PRM800K_paper} trains such a model on 800k step-labelled math traces and shows it delivers far more reliable behavior than outcome-only RL. However, scaling such fine-grained supervision beyond math is hamstrung by the lack of cross-domain datasets.
+\end{enumerate}
+
+\subsection{Process supervision and meta-reasoning datasets}
+\label{subsec:process-supervision}
+Spurred by these emerging paradigms, the last two years have seen a surge of datasets that make models learn from, or criticize, other models’ chains-of-thought (CoT).  On the supervision side, PRM800K (\citeyear{PRM800K_paper}) provides $\sim$800k step-level labels for 75,000 solutions to problems from the MATH (\citeyear{MATH}) dataset. The MR-MATH dataset (\citeyear{mrmath}), by contrast, is a smaller, manually-annotated corpus of 159 solutions designed for the meta-evaluation of reasoning evaluators. Both corpora are professionally curated and high-quality but remain restricted to symbolic K-12 mathematics.
+
+To reduce annotation cost, Math-Shepherd (\citeyear{mathshepherd}) automatically attaches step-level labels to $\approx$440k LLM-generated solutions using an MCTS-style completer.  While this corpus outperforms the gains of human-annotated PRM800K, follow-up studies show that verifier accuracy  \emph{drops sharply} once the reasoning style or rationale fidelity shifts \citep{zhou2024CanLanguageModels, jacovi2024ACoT}\footnote{\textbf{Verifier weaknesses in \citet{jacovi2024ACoT}.} On REVEAL, six strong verifiers exhibit three consistent failure modes: (i) \emph{step-type classification}—all models achieve macro-F1 below 65\%, struggling even to identify reasoning step types; (ii) \emph{logical-correctness detection}—the best model (PaLM-2-L) attains only 64\% F1, others drop to low-30\%; and (iii) \emph{full-chain verification}—pipelines detect incorrect answers effectively ($\approx$84\% F1) but certify only 30–56\% of correct chains. The authors conclude ``automatic verifiers struggle to verify [reasoning chains] appropriately,'' with logical inference posing the greatest challenge.}, echoing evidence from NLI that models often exploit superficial trace patterns rather than performing robust verification \citep{mccoy2019right, gururangan2018annotation}.
+
+A complementary line of work retains the evaluator but publishes the traces. MR-GSM8K (\citeyear{GSM8k}) and MR-Ben (\citeyear{MRBen}) ask a second model to localize and explain an error in another model’s reasoning. MR-GSM8K covers 3k school-math questions; MR-Ben scales to 5,975 items across seven disciplines, yet both tasks still reveal the entire chain to the grader. Exposing the full chain changes the problem.  Large models can rapidly learn to `explain' in ways that satisfy the rubric without reflecting their internal state (\cite{ye2022TheUnreliability}, confirmed in Math-Shepherd’s (\citeyear{mathshepherd}) ablation studies). Apple's \emph{Illusion of Thinking} \citep{IllusionOfThinking} extends this critique: in controlled puzzle environments they show that frontier Large Reasoning Models (LRMs) initially increase their token-level `reasoning effort' with problem complexity but then \textit{reduce} that effort and collapse in accuracy once complexity exceeds a threshold. As the optimizer and evaluator both see the full CoT, models can optimize superficial trace statistics—length, self-consistency, keyword frequency—without acquiring latent-state fidelity.  The resulting behavior matches Shojaee et al.’s observed ``over-thinking followed by sudden collapse'' pattern and underscores the need for benchmarks that keep intermediates hidden.
+
+Thus, as every intermediate value is printed verbatim in the datasets above, none can test whether a model can \emph{re-construct} hidden state when that state is omitted. Shojaee et al.’s (\citeyear{IllusionOfThinking}) findings further suggest that visible traces may mask fundamental scaling limits. VLO addresses this gap by hiding non-leaf values behind narrative anchors and introducing semantically relevant distractors; only evaluators see ground-truth traces, requiring models to implicitly infer latent states. Thus, VLO counters the issues highlighted by Shojaee et al., preventing models from optimizing toward superficial trace forms and enforcing genuine inference of unstated intermediates.
+
+\subsection{VLO: A diagnostic toolchain for internal reasoning robustness}
+\label{subsec:vlo-diagnostic}
+VLO is a universal reasoning framework purpose-built to close the evaluation gaps catalogued above. Below, we map each limitation to VLO's corresponding design choices:
+
+\begin{enumerate}
+  \item \textbf{Reasoning versus recall:}
+        Prior benchmarks conflate recall with reasoning because the required fact usually appears verbatim somewhere in the context.  In VLO, no intermediate value is ever stated explicitly as to isolate reasoning from context memorization.
+
+  \item \textbf{Orthogonal difficulty control:}
+        While synthetic datasets like RULER (\citeyear{ruler}) lack realistic noise and human-authored corpora like InfiniteBench (\citeyear{infinitebench}) make distraction and reasoning depth inseparable, VLO provides independent control knobs. Reasoning difficulty and distractor density are decoupled hyper-parameters, enabling researchers to conduct clean scaling studies by sweeping one variable while holding others fixed.
+
+  \item \textbf{From outcome to process:}
+        Conventional long-context and needle-in-a-haystack benchmarks evaluate only final answers, failing to detect spurious pattern-matching. In contrast, VLO provides exact labels for \emph{each} intermediate ListOps node. Our diagnostics pinpoint the first divergence in a model's reasoning trace, converting single-bit accuracy into detailed error-propagation profiles (Section~\ref{subsec:results}). This directly supports process-reward research \citep{PRM800K_paper,Zhang2025LessonsPRM}, enabling evaluation data to train reward models that assess hidden internal states rather than explicit reasoning chains.
+
+  \item \textbf{Implicit state supervision for PRMs:}
+        Existing process-supervision corpora explicitly reveal intermediate reasoning steps, preventing evaluation of a model's ability to \emph{infer} latent states absent from the text. VLO is the only dynamically generated large-scale corpus providing evaluators with ground-truth internal states hidden from the model, enabling PRMs to extend beyond explicit chain-of-thought to implicit narrative computation, a previously unavailable capability.
+
+  \item \textbf{Contamination resistance:}
+        As each sample is generated on-the-fly from a randomly sampled ListOps AST and a freshly hallucinated "world", the probability of any fixed instance recurring in training data is negligible. Thus VLO functions as the "controllable puzzle environment" advocated by \citet{IllusionOfThinking} without sacrificing narrative coherence.
+
+  \item \textbf{Reasoning extensibility:}
+        VLO's agentic generation pipeline is operator-set agnostic: replacing arithmetic ListOps nodes with symbolic, abductive, or defeasible operators (see Appendix~\ref{sec:extending_VLO}, \textit{Extending VLO for Other Reasoning Types / Non-Numeric Reasoning}) yields benchmarks tailored to Concept-state models, Recurrent Memory Transformers, or Modular Agentic Planners. Thus, VLO is not merely a dataset but a general \emph{methodology} for rigorously evaluating architectures claiming multi-step reasoning in long, noisy contexts—particularly relevant for LRMs like DeepSeek-R1 whose self-reflection capabilities remain largely untested in narrative-camouflaged, implicit-state scenarios.
+
+\end{enumerate}
+
+The below table summarizes the qualitative differences between VLO and existing benchmarks.
+
+\begin{table}[H]
+  \footnotesize
+  \setlength{\tabcolsep}{3pt}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{
+      L{6em}   % Benchmark
+      L{4.5em} % Primary Task
+      C{3.5em}   % Generation
+      C{3.7em} % Hidden Interm. State
+      C{3.7em} % Step-Level Labels
+      C{4em}   % Orth Difficulty Control
+      C{5em}   % Distractors
+      C{3.5em} % >100k Context
+      C{4.5em}   % Extensible to Other Reasoning Tasks
+    }
+    \toprule
+    \makecell[c]{\textbf{Benchmark}} &
+    \makecell[c]{\textbf{Primary}                 \\ \textbf{Task}} &
+    \makecell[c]{\textbf{Scalable}                \\ \textbf{Gener.}} &
+    \makecell[c]{\textbf{Hidden}                  \\ \textbf{Interm.} \\ \textbf{State}} &
+    \makecell[c]{\textbf{Step–}                   \\ \textbf{Level} \\ \textbf{Labels}} &
+    \makecell[c]{\textbf{Orth.}                   \\ \textbf{Difficulty} \\ \textbf{Controls}} &
+    \makecell[c]{\textbf{Realistic}               \\ \textbf{Distractors}} &
+    \makecell[c]{\textbf{>100k}                   \\ \textbf{Context}} &
+    \makecell[c]{\textbf{Reasoning}               \\ \textbf{Extensible}} \\
+    \midrule
+    \makecell[l]{Verbose                          \\ ListOps}                                      &
+    Reasoning                        &
+    \yesmark                         &
+    \yesmark                         & \yesmark &
+    \yesmark                         &
+    \yesmark                         &
+    \yesmark                         &
+    \yesmark                                      \\
+    \addlinespace
+    \makecell[l]{LongReason                       \\ }                                    &
+    Reasoning                        &
+    \yesmark                         &
+    \nomark                          & \nomark  &
+    \nomark                          &
+    \yesmark                         &
+    \yesmark                         &
+    \nomark                                       \\
+    \addlinespace
+    \makecell[l]{Michelangelo                     \\ }                                    &
+    Reasoning                        &
+    \yesmark                         &
+    \yesmark                         & \nomark  &
+    \yesmark                         &
+    \nomark                          &
+    \yesmark                         &
+    \nomark                                       \\
+    \addlinespace
+    `NIAH' \& derivatives            &
+    Recall                           &
+    \yesmark                         &
+    \nomark                          & \nomark  &
+    \nomark                          &
+    \nomark                          &
+    \yesmark                         &
+    \nomark                                       \\
+    \addlinespace
+    \makecell[l]{RULER}              &
+    Reasoning                        &
+    \yesmark                         &
+    \nomark                          & \nomark  &
+    \somewhatmark                    &
+    \nomark                          &
+    \yesmark                         &
+    \nomark                                       \\
+    \addlinespace
+    $\infty$Bench / LooGLE           &
+    Reasoning                        &
+    \nomark                          &
+    \nomark                          & \nomark  &
+    \nomark                          &
+    \yesmark                         &
+    \somewhatmark                    &
+    \nomark                                       \\
+    \addlinespace
+    \makecell[l]{PRM800K                          \\ }                                    &
+    Structured-Proof                 &
+    \somewhatmark                    &
+    \somewhatmark                    & \yesmark &
+    \nomark                          &
+    \nomark                          &
+    \nomark                          &
+    \nomark                                       \\
+    \addlinespace
+    \makecell[l]{MR-Ben                           \\ }                                    &
+    Meta-Reasoning                   &
+    \somewhatmark                    &
+    \nomark                          & \yesmark &
+    \nomark                          &
+    \nomark                          &
+    \nomark                          &
+    \nomark                                       \\
+    \addlinespace
+    \bottomrule
+  \end{tabular}
+  \vspace{6pt}
+  \caption{\textit{The Lord of the Benchmarks: One Benchmark to rule them all.} Qualitative comparison of VLO with representative long-context and process-oriented benchmarks.}
+  \label{tab:benchmark_comparison_intro}
+\end{table}
+
+\section{Verbose ListOps (VLO): Specification and Experimental Setup}
+\label{sec:VLO-spec}
+
+This section formalizes the Verbose ListOps (VLO) task, details its programmatic construction pipeline, and presents the controllable parameters used to stress‑test long‑context language models.
+
+% ---------------- 3.1 Formal Task Definition ----------------
+\subsection{Formal Task Definition}
+\label{subsec:task-def}
+
+Given a narrative $X \in \mathbb{T}_{10\mathrm{k}\text{-token}}$ and an implicit ListOps abstract syntax tree (AST) $T$ with leaves (atomic integers) and internal nodes (operators), the original ListOps task \citep{listops} requires models to evaluate $T$ by performing its specified operations (e.g., \texttt{SUM}s, \texttt{MIN}imums, \texttt{MEDIAN}s) on numerical inputs to yield a deterministic result. For example, if
+
+\[
+  T = \texttt{MAX}(\texttt{SUM}(2,1),\,4),
+\]
+
+then one computes $\texttt{SUM}(2,1)=3$ and subsequently $\texttt{MAX}(3,4)=4$.
+
+VLO embeds each nested ListOps operation in a narrative, describing each node in $T$ via post-order traversal. Placeholders $\{a_i\}$ (which we call `narrative anchors') refer to intermediate values without explicitly stating the results.
+
+Formally, the VLO task is:
+
+\[
+  f\colon X \longrightarrow v(T),
+\]
+
+…where v(T) denotes the final numerical result (the scalar value at the root of the abstract-syntax tree). Success is $f(X)$ matching the ground-truth integer.
+
+\paragraph{Running example}
+Consider the above ListOps problem again. Intermediate values appear only as anchors ${a_i}$. The first operation is
+
+\[
+  \texttt{SUM}(2,1) \;\to\; a_1,\quad a_1 = 3
+\]
+
+In VLO, this operation would be narrativized as the following:
+
+\begin{quote}
+  "In the bustling spaceport of Xylos, Chief Engineer Anya cataloged incoming parts. Her logs showed \textbf{one} crate of cryo‐cells arrived on the morning freighter, and later, \textbf{two} additional crates were offloaded from a fast courier. She processed these figures, which she labeled as \textit{`Daily Cell Intake'} (anchor $a_1$) in preparation for her presentation at Xylos' annual Meteor Shower Festival.
+\end{quote}
+
+\noindent\hspace{3.5em}\begin{minipage}{\dimexpr\textwidth-7em}
+  \textit{Notice `Daily Cell Intake' represents $a_1$ (the first operation's result) so the number `3' (result of the \texttt{SUM}) never appears.}
+\end{minipage}
+
+The second operation is
+
+\[
+  \texttt{MAX}(a_1,4) \;\to\; a_2,\quad a_2 = 4
+\]
+
+…yielding the final result $v(T)$. The narrative then compares \textit{`Daily Cell Intake'} ($a_1$) with four, names the larger as anchor $a_2$, and omits that $a_1=3$. This preserves the no‐numeric‐leakage constraint and ensures the model's output equals $v(T)$.
+
+% ---------------- 3.2 Design Constraints ----------------
+\subsection{Design Constraints}
+\label{subsec:design-constraints}
+VLO enforces three orthogonal constraints that distinguish it from prior long‑context benchmarks:
+\begin{description}
+  \item[C1 No numeric leakage.] Intermediate results are \emph{never stated}; they may only be referenced via anchors (e.g., ``the daily cell intake''). Explicit numerals for non‑leaf nodes are prohibited.
+  \item[C2 Narrative camouflage.] LLMs weave operator descriptions into a coherent story that contains LLM-generated, semantically related computation‑irrelevant content (distractors), mirroring real‑world documents where crucial information is buried among related context.
+  \item[C3 Parametric control.] ListOps complexity (operator set, tree depth $d$, branching factor $b$) is adjustable, enabling ablations; increasing $d$ or $b$ adds anchors and narrative density.
+\end{description}
+
+\subsection{Generation Pipeline}
+\label{subsec:generation}
+Figure~\ref{fig:pipeline1} outlines how the VLO construction pipeline ensures adherence to constraints C1–C3 through the following process (implementation details and prompts are provided in Appendices~\ref{app:generation_hyperparams} and \ref{app:prompts}):
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=1\textwidth]{generation-flow_svg-tex.pdf}
+  \caption{The Verbose ListOps (VLO) agentic generation and validation pipeline. The process begins with AST sampling and world generation, then iteratively constructs narrative segments using Author-Critic LLM pairs with programmatic validation, incorporates distraction content, and concludes with holistic validation to ensure sample validity and adherence to constraints C1-C3.}
+  \label{fig:pipeline1}
+\end{figure}
+
+\begin{enumerate}
+  \item \textbf{AST Sampling.} Sample a ListOps AST $T$ of depth $d$ and branching factor $b$, and compute its root value $v(T)$ by deterministic post‐order evaluation.
+  \item \textbf{World Generation.} Generate fictional world metadata (genre, setting, characters, and primary objects) using an LLM to establish thematic coherence for narrative embedding (constraint C2). This creates the contextual foundation for embedding ListOps operations into a cohesive story. \emph{Narrative anchors}—conceptual names like "Daily Cell Intake"—are generated to reference intermediate results without revealing numerical values (constraint C1). Detailed parameters are in Appendix~\ref{app:generation_hyperparams}.
+  \item \textbf{Distraction Generation.} Generate semantically relevant but computation-irrelevant content between ListOps operations. This expands context length while forcing models to filter computational information from extraneous narrative detail, using the same world context to maintain coherence without introducing interfering numerical information that can interfere with the underlying reasoning task. The \emph{token watcher} monitors narrative length throughout generation, dynamically allocating the remaining token budget after ListOps narratives.
+  \item \textbf{Operator Narrative Construction.} For each ListOps node, build a narrative segment via:
+        \begin{itemize}
+          \item[(a)] \textbf{Author Agent.} The Author LLM drafts a segment for the current operator $\omega \in \mathcal{O}$ and its child anchors $a_i$ (if applicable), weaving it into the story (C2) while avoiding numeric mention of the current result (C1) and respecting parameters (C3).
+          \item[(b)] \textbf{Critic Agent.} The Critic LLM reviews the draft, checking:
+                \begin{itemize}
+                  \item[\textbullet] No numeric digits or words for the current operation's result appear (enforces C1).
+                  \item[\textbullet] Correct anchor use (for child inputs of prior operations) and atomic inputs.
+                  \item[\textbullet] Narrative coherence (ensures C2).
+                \end{itemize}
+                It proposes edits if it finds violations, and the Author revises until all checks pass.
+          \item[(c)] \textbf{Programmatic Static Validation.} A script scans the finalized segment to verify:
+                \begin{itemize}
+                  \item[\textbullet] Absence of any digit or word numbers for the current operation's result.
+                  \item[\textbullet] Presence of anchor tokens (if expected) or numerical atomic inputs.
+                  \item[\textbullet] No unexpected placeholders or formatting.
+                \end{itemize}
+                Any failure triggers a re-generation of that segment.
+        \end{itemize}
+  \item \textbf{Comprehensive LLM Validation:} A larger Validator LLM, aided by extensive prompting and few-shot examples, performs step-by-step evaluation against the original AST $T$ to detect numeric leaks, verify correct representation of operations and inputs, check for missing/duplicate operators, ensure coherence (C2), and confirm ground truth value $v(T)$.
+        Violations identified by the Validator LLM cause the sample to be discarded and resampled.
+\end{enumerate}
+% ---------------- 3.6 Experimental Setup ----------------
+
+% ---------------- 3.4 Controllable Parameters ----------------
+\subsection{Controllable Parameters}
+\label{subsec:params}
+VLO's generation pipeline (detailed in Appendix~\ref{app:generation_pipeline_detailed}) allows fine‑grained difficulty control via \texttt{Config}. Key parameters include:
+\begin{itemize}
+  \item \textbf{Narrative length:} The target length of a sample.
+  \item \textbf{Tree complexity:} Parameters such as tree depth $d$ (\texttt{MAX\_OPS}) and operator branching factor $b$ (arity, controlled by \texttt{MIN\_ARITY} and \texttt{MAX\_BRANCH}) are tunable. For the specific settings used to generate the dataset for this paper, please refer to Section~\ref{subsec:exp-setup} and Appendix~\ref{app:generation_hyperparams}. Larger $d$ or $b$ generally increases the number of anchors and thus the narrative density.
+\end{itemize}
+
+\subsection{Experimental Setup}
+\label{subsec:exp-setup}
+\begin{itemize}
+  \item \textbf{Models.} We test Gemini 2.5 Pro and Flash, OpenAI o4-Mini and GPT-4.1, Grok 3-Mini, Claude 3.7 Sonnet, DeepSeek R1 and V3, Qwen-3 235B, and Llama-4 Maverick.
+  \item \textbf{VLO instances.} 1,000 VLO-10k samples were generated at a cost of $\approx\$1,500$~USD. The embedded ListOps problems within these instances used the following parameters: max 8 operations per AST, max branching factor of 8, min operator arity of 4, and atomic integer values from range [1, 30]. Full hyperparameter details are available in Appendix~\ref{app:generation_hyperparams}.
+  \item \textbf{Standard ListOps baseline.} For each VLO sample, we construct the bare ListOps expression, providing an algorithmic baseline of identical difficulty without narrative distractors.
+  \item \textbf{Evaluation inference config.} All models had $temperature = 0.01$ and $top\_p = 0.95$ and were accessed via OpenRouter. Total evaluation incurred a cost of $\approx\$500$~USD.
+\end{itemize}
+
+% ---------------- 3.5 Evaluation Protocol ----------------
+\subsection{Evaluation Protocol}
+\label{subsec:evaluation}
+Models receive the full narrative $X$ (with anchors $\{a_i\}$) and must output an integer. We report exact‑match accuracy with 95\% Wilson confidence intervals, as in recent long‑context benchmarks ~\citep{l-eval, infinitebench}. \texttt{evaluator.py} conducts the evaluation (and \texttt{equation\_llm\_evaluator.py} for standard ListOps). Chain‑of‑thought or external tool use is \emph{prohibited} to isolate internal computation. All code, generation logs, and datasets are open‑source.
+
+% ---------------- 4.2 Results ----------------
+\section{Results}
+\label{subsec:results}
+The table below reports exact-match accuracy on both Verbose ListOps and its corresponding bare ListOps expressions alongside performance on the OpenAI MRCR NIAH benchmark. Whilst nearly every `thinking' model achieves perfect or near-perfect accuracy on bare ListOps, performance collapses under Verbose ListOps \emph{at just 10-k tokens}.
+
+\begin{table}[htbp]
+  \centering
+  \scriptsize
+  {
+    \setlength{\arrayrulewidth}{0.01pt}
+    \setlength{\tabcolsep}{1em}
+    \begin{tabular}{l|ccc|cc}
+      \toprule
+      \textbf{Model}            & \textbf{ListOps} & \textbf{VLO-10k} & \textbf{OAI MRCR-8k 8-Pin}\footnotemark & \textbf{95\% CI (ListOps)} & \textbf{95\% CI (VLO)} \\
+      \midrule
+      \multicolumn{6}{c}{\itshape Closed-source models}                                                                                                               \\ [2pt]
+      Gemini 2.5 Pro            & 100.0            & 55.3             & 86.0                                    & 99.6–100.0                 & 52.2–58.4              \\
+      Gemini 2.5 Flash Thinking & 100.0            & 49.1             & 63.3                                    & 99.6–100.0                 & 46.0–52.2              \\
+      o4 Mini High              & 100.0            & 48.1             & 63.6                                    & 99.6–100.0                 & 45.0–51.2              \\
+      Grok 3 Mini High          & 81.7             & 47.2             & 51.6                                    & 79.2–84.0                  & 44.1–50.3              \\
+      Claude 3.7 Sonnet High    & 58.4             & 40.0             & N/A                                     & 55.3–61.4                  & 37.0–43.1              \\
+      GPT-4.1                   & 38.6             & 32.2             & 29.6                                    & 35.6–41.7                  & 29.3–35.2              \\
+      \midrule
+      \multicolumn{6}{c}{\itshape Open-source models}                                                                                                                 \\ [2pt]
+      DeepSeek R1               & 98.4             & 41.2             & N/A                                     & 97.4–99.1                  & 38.2–44.3              \\
+      Qwen-3 235B               & 53.7             & 41.5             & N/A                                     & 50.6–56.8                  & 38.4–44.6              \\
+      Llama 4 Maverick          & 47.2             & 32.0             & N/A                                     & 44.1–50.3                  & 29.1–35.0              \\
+      DeepSeek V3 0324          & 93.7             & 25.1             & N/A                                     & 92.0–95.1                  & 22.4–28.0              \\
+      \bottomrule
+    \end{tabular}
+  }
+  \vspace{4pt}
+  \caption{Accuracy on VLO-10k versus its corresponding bare ListOps expressions, based on evaluation of 1,000 samples per model. \emph{Note DeepSeek V3's drop from 93.7\% to 25.1\%.}}
+  \label{tab:model_performance_results}
+\end{table}
+
+\footnotetext{OpenAI's Multi-Reference Context Recall (MRCR) benchmark: 8-passage subset measuring pure recall accuracy under 8k tokens without multi-step reasoning. Provides baseline for comparing recall vs. VLO's narrative-embedded reasoning. Results from ContextArena \citep{ContextArena2025}.}
+
+% ---------------- 4.3 Discussion and Limitations ----------------
+\subsection{Analysis and Limitations}
+\label{subsec:discussion}
+
+\paragraph{Narrative Camouflage, `Cognitive Control', and Architectural Divergence}
+VLO challenges models to find, solve, track, and synthesize nested reasoning problems amongst narrative camouflage to answer a deterministic question, creating a information processing burden that exposes fundamental architectural differences between models. The results in Table~\ref{tab:model_performance_results} reveal two critical takeaways. First, models with explicit reasoning scaffolds (e.g., Gemini 2.5, o4-Mini) perform better on VLO than those without. Second, the stark contrast between DeepSeek-V3's near-perfect score on raw ListOps and its collapse on VLO demonstrates while scratchpad-like mechanisms are not required for nested reasoning, they are crucial for filtering noise and protecting the reasoning process from distractors.
+
+This architectural divergence explains the performance trends. DeepSeek-V3's design, while highly efficient, creates specific vulnerabilities to VLO's challenge. Its architecture is optimized for performance on standard benchmarks through two key strategies that, we hypothesize, compromise its task resilience on VLO. First, its \textit{auxiliary-loss-free load balancing} for its Mixture-of-Experts (MoE) architecture encourages over-specialisation, where the gating network routes inputs to a "narrative" expert that fails to pattern-match the embedded logic. Second, its use of \textit{Multi-Token Prediction (MTP)} encourages the model to "pre-plan" its output based on narrative flow, reinforcing the very heuristic processing that VLO penalizes \citep{deepseekv3}.
+
+Crucially, DeepSeek-V3's technical report clarifies that its math and coding reasoning capabilities stem not from emergence but from \emph{distillation from DeepSeek-R1}, which has long-Chain-of-Thought capabilities. This process "notably improves its reasoning performance" by adopting R1's "verification and reflection patterns" into V3 \citep{deepseekv3}. Therefore, V3's reasoning is a specialized, distilled skill rather than an inherent, flexible process, explaining its brittleness: these patterns excel on structured tasks like raw ListOps but falter under VLO's narrative camouflage, which demands a more robust, first-principles reasoning scaffold.
+
+In contrast, Gemini's architecture, founded on a highly efficient sparse Mixture-of-Experts (MoE) architecture \citep{gemini_15}, appears to incorporate more robust mechanisms for maintaining task focus amidst distraction. An analysis of Gemini 2.5's `thinking' on VLO suggests its MoE implementation may avoid this hyper-specialization trap. When processing a VLO problem, it behaves as if it first decomposes the task, managing the narrative, operands, and operators as distinct variables. Its MoE routing is then conditioned on this sub-task, and behaves in a way that seems to dynamically shift from activating semantic experts for the narrative to logic-and-reasoning experts for the calculation, in what can be described as dynamic context-aware routing. This ability to parse and apply a formal, rule-based system provided entirely in-context is the same fundamental capability demonstrated in the Gemini 1.5 \emph{Technical Report}, where the model learns to translate Kalamang (a language with $<$200 speakers) by processing an in-prompt 500-page grammar book and dictionary \citep{gemini_15}.
+
+Viewing this delta as a proxy for maintaining appropriate attention over long contexts, this architectural split can explain the shrinking performance delta between MRCR and VLO for less capable `thinking' models. Less capable models have uniformly weak heuristic processing—not sophisticated enough to be hijacked by narrative—and too weak algorithmic execution, yielding two low, closely clustered scores. Conversely, Gemini 2.5's architecture explains its large delta: its heuristic system excels at MRCR but generates interference that its internal reasoning scaffold struggles to overcome on VLO, a known LLM issue \citep{shi2023large, med_distract_qa}. This aligns with findings that LLMs struggle to shift from intuitive, pattern-matching reasoning to deliberate, step-by-step processing for unfamiliar or complex structures \citep{gsm-symbolic}. Thus, the performance gap between recall and narrative reasoning powerfully proxies this architectural conflict.
+
+\paragraph{Limitations and Future Work}
+Using a fixed $\approx$10k-token narrative exploits the strong recall abilities of SOTA LLMs at this context size \citep{ContextArena2025}, allowing VLO to isolate reasoning deficits from failures in factual recall. The degradation observed (Table 2) at a context length where recall is robust underscores VLO's focus on narrative-embedded computational challenges. Future studies should vary context length more broadly to explore these dynamics.
+
+Further considerations and avenues for future research include:
+
+\begin{itemize}
+  \item \textbf{Generator Model Bias:} VLO-10k was generated with Gemini 2.5.\footnote{During development we found only Gemini 2.5 and GPT-4.5 could reliably generate VLO, with GPT-4.5 pricing being cost-prohibitive (\$75USD/M input tokens, \$150USD/M output tokens \citep{openai_pricing_2025}).} This introduces potential generator model bias, where evaluated models from the same family may exhibit inflated performance due to stylistic or implicit knowledge alignment. Future work should investigate this and explore mitigation strategies, such as employing a more diverse set of future generator models or incorporating bias-neutralization techniques \citep{silencer}.
+  \item \textbf{Chain-of-Thought (CoT) Prohibition:} This evaluation prohibits external CoT prompting to isolate core computational reasoning as today's `thinking' models have internal CoT-like functions. Given DeepSeek v3's notable degradation on VLO, a future evaluation allowing external CoT or advanced prompting (e.g., Tree-of-Thoughts \cite{treeofthoughts}) could clarify if explicit scratchpad prompting restores reasoning or reveals inherent architectural limits.
+  \item \textbf{Depth of Failure Mode Analysis:} While Table~2 compellingly demonstrates significant performance drops, the current analysis remains primarily quantitative. A granular error analysis would help explain \textit{why} models fail on VLO tasks, whether due to narrative parsing errors, incorrect ListOps computations, or challenges in tracking internal states amid distractors. Investigating error cascading or differences by operator type, tree complexity, or narrative structure could inform the development of more robust reasoning architectures.
+  \item \textbf{Scope and Generalizability of ListOps:} Currently, VLO uses ListOps to evaluate algorithmic execution and state-tracking within narratives. This initial focus does not capture the full range of real‐world narrative reasoning, which involves ambiguity, implicit knowledge, and logical frameworks like abductive, inductive \citep{abductive-deductive-inductive-reasoning, inductive-reasoning}, or defeasible reasoning \citep{symtex, Leidinger2024LLMsNonmonotonic}. Fortunately, the VLO generation pipeline (detailed in Appendix~\ref{app:generation_pipeline_detailed}) is highly extensible, and can support symbolic non-numeric problems, enabling future variants to test reasoning such as abducting causes, inducing general rules, or handling defeasible updates, providing a more comprehensive evaluation. See Appendix~\ref{sec:extending_VLO} for details on extending VLO to other reasoning types.
+
+\end{itemize}
+
+\paragraph{Key takeaway.}
+Sustaining multi-step computation amidst noise requires architectures that explicitly model reasoning steps. Parameter scale or context window size alone cannot bridge this weakness.
+
+\section{Discussion}
+VLO was initially developed to benchmark automated predictive signal extraction from distributed narratives (e.g., assessing prospect `consequence awareness' from sales communications). Results here highlight a critical gap in automating sophisticated analytics: failures observed in VLO mirror real-world issues, such how a lawyer might lose track of interacting clauses or salespeople misinterpreting intent due to narrative complexity. State-of-the-art LLMs excel at fact recall but falter when reasoning with extracted facts, underscoring that improved context length alone is insufficient. VLO thus provides an essential testbed for emerging architectures capable of addressing these reasoning challenges, including those with explicit planning (e.g., PFC-inspired systems \citep{pfc}) and advanced prompting strategies like \cite{treeofthoughts}'s Tree-of-Thoughts.
+
+Concept-oriented Large Concept Models (LCMs),\footnote{`LCMs' here \textbf{do not} refer to Latent Consistency Models used for image synthesis.}  which operate on higher-level semantic units rather than individual tokens \citep{lcm} offer a promising direction. For VLO, an LCM treats each reasoning step or conceptual reference to an intermediate result (our "narrative anchors") as distinct conceptual units. This aligns more closely with how humans might track such information and could make the model more resistant to narrative distractors when trying to maintain the integrity of a numerical value associated with a concept. In performing autoregressive prediction in a concept embedding space, rather than a token space, LCMs could facilitate more stable tracking of multi-step computations. Such concept embeddings can be a robust and less diffuse carrier of the numerical value of an intermediate result than distributed token activations.
+
+Finally, VLO's programmatic framework (detailed in Appendix~\ref{app:generation_pipeline_detailed}) shows promise in how it agentically embeds deterministic tasks into narratives to force internal computation. Such a method can be extended to any domain requiring implicit criteria encoding (done here via narrative anchors) to create more realistic and challenging synthetic datasets, e.g., LLM-as-Judge, Multi-Hop QA, Code-Based Evaluation, and Long-Context QA/Summarization evaluations. VLO thus not only exposes current limitations but also offers a methodology for developing next-generation LLMs with deeper reasoning.
+
+\subsection*{Broader Impacts}
+VLO pushes for Large Language Models that can effectively process long, complex narratives. Such advances are stepping stones for LLMs to unearth predictive signals hidden in  text. The upsides are clear: sharper analytical tools for science, more insightful legal review, or more astute financial risk assessment from textual data. Our effort to pinpoint and fix current reasoning flaws is about building more dependable Artificial Intelligence for these demanding roles.
+
+However, creating LLMs skilled at deciphering narratives raises significant dual-use concerns, especially with developing research showing LLMs can outperform leading time-series predictive models \citep{contextiskey}. The capacity to extract predictive signals from text, while beneficial, could be repurposed for high-stakes social monitoring. This creates a direct risk of what is often termed predictive policing, where models could generate pre-emptive, and potentially biased, judgments about individuals based on textual data \citep{predictive_policing}. If an AI claims to "predict" behavior from text, the door opens to profiling and discrimination, creating a climate of surveillance that could chill free expression; a core concern in the literature on surveillance capitalism \citep{surveillance_capitalism}.
+
+Further, relying on LLMs for prediction is risky when their internal logic is opaque: unexpected failures increase in likelihood, with these errors being hard to detect or correct \citep{rane2024blackbox_xai}. Hence, high stakes `automated signal extraction' gone wrong can deeply affect lives. AI-driven economic shifts likewise redefine professional roles through task-based automation rather than simple job loss, polarizing the labor market: routine analytical tasks may be automated while experts who manage, interpret, and validate these systems become more in demand \citep{work_of_the_future}.
+
+VLO directly contributes to the development of more scrutable and robust AI. Opaque reasoning can lead to biased outcomes or unexplained failures in critical domains. The risks of opaque reasoning, from biased predictions to unexplainable failures in safety-critical domains, cannot be mitigated without tools that allow for the falsification of specific reasoning pathways. VLO offers such a tool: a controlled, deterministic environment where a model's failures reveal precise breakdowns in its computation rather than just an accuracy drop. By isolating narrative-embedded reasoning, it delivers a clear diagnostic signal for architectural and algorithmic improvements. This supports the community's shift from merely scaling capabilities to building trustworthy systems \citep{stanford_hai_2025_ai_index}. Responsible AI demands models that are not only powerful, but also interpretable. VLO tells you where and why they fail.
+
+\bibliographystyle{plainnat}
+\bibliography{\jobname}
+
+\clearpage
+\appendix
+\section*{Appendix}
+
+\section{Extending VLO for Other Reasoning Types / Non-Numeric Reasoning}
+\label{sec:extending_VLO}
+As VLO is built on a deterministically verifiable Abstract Syntax Tree (AST), this core component can be adapted from numerical operations to symbolic and logical ones. The existing framework can be extended to test abductive, inductive, and defeasible reasoning with non-numeric symbols, while remaining deterministically verifiable.
+
+\subsection{Adapting the Core: The Abstract Syntax Tree (AST)}
+
+The current AST uses operators like \texttt{SUM}, \texttt{MAX}, \texttt{MIN} on integer \texttt{Atom} nodes. This can be generalized:
+
+\begin{itemize}
+  \item \textbf{Atoms:} The \texttt{Atom} node, which currently holds an integer, can be modified to hold a string representing a non-numeric symbol, a fact, or a concept (e.g., ``the ground is wet'', ``Tweety is a bird'').
+  \item \textbf{Operators:} The \texttt{OpNode} can be defined with new operators that represent logical reasoning tasks, such as \texttt{ABDUCE}, \texttt{INDUCE}, or \texttt{DEFEASIBLE\_QUERY}.
+\end{itemize}
+
+The crucial step is to define how these new operators are evaluated deterministically in the \texttt{eval\_node} function.
+
+\subsection{Making Logical Reasoning Deterministically Verifiable}
+
+The main challenge is making subjective-sounding reasoning tasks verifiable. This is achieved by defining a clear, programmatic evaluation logic for each new operator within a constrained environment.
+
+\paragraph{Abductive Reasoning (Inference to the Best Explanation)}
+
+\begin{itemize}
+  \item \textbf{Goal:} To infer the most likely cause given a set of observations.
+  \item \textbf{Deterministic Method:} Define a simple, score-based logic. The \texttt{ABDUCE} operator would take a set of observations and a list of potential causes, each with predefined properties. The \texttt{eval\_node} function would calculate a score for each cause and select the ``best'' one based on this score.
+  \item \textbf{Example AST:}
+        \begin{verbatim}
+(\texttt{ABDUCE}
+  (OBSERVATIONS "lights flicker" "strange hum")
+  (CAUSES
+    (CAUSE "power surge" (simplicity 2) (likelihood 0.8))
+    (CAUSE "ghost" (simplicity 8) (likelihood 0.1))
+  )
+)
+\end{verbatim}
+  \item \textbf{\texttt{eval\_node} Logic:} It would compute \texttt{score = likelihood / simplicity} for each cause and return the name of the cause with the highest score. In this case, ``power surge'' (0.4) beats ``ghost'' (0.0125). The ground truth is deterministically ``power surge''.
+\end{itemize}
+
+\paragraph{Inductive Reasoning (Generalization)}
+
+\begin{itemize}
+  \item \textbf{Goal:} To form a general rule from specific examples.
+  \item \textbf{Deterministic Method:} Constrain the space of possible rules. The \texttt{INDUCE} operator would take a list of examples and a predefined set of potential rules. The \texttt{eval\_node} function would select the first rule from the set that is consistent with all provided examples.
+  \item \textbf{Example AST:}
+        \begin{verbatim}
+(\texttt{INDUCE}
+  (EXAMPLES ("raven A is black") ("raven B is black"))
+  (RULE_CANDIDATES ("all birds are black") ("all ravens are black") 
+                   ("some ravens are black"))
+)
+\end{verbatim}
+  \item \textbf{\texttt{eval\_node} Logic:} It would check each rule candidate. ``all birds are black'' is not contradicted but is less specific. ``all ravens are black'' is consistent. It would return ``all ravens are black'' as the correct, most specific, consistent rule from the given set.
+\end{itemize}
+
+\paragraph{Defeasible Reasoning (Rules with Exceptions)}
+
+\begin{itemize}
+  \item \textbf{Goal:} To reason with rules that can be defeated by new information.
+  \item \textbf{Deterministic Method:} Implement a simple, priority-based logic system. The \texttt{DEFEASIBLE\_QUERY} operator would take a set of facts and an ordered list of rules and exceptions. The \texttt{eval\_node} function applies the rules in order, allowing later rules (exceptions) to override earlier ones.
+  \item \textbf{Example AST:}
+        \begin{verbatim}
+(\texttt{DEFEASIBLE\_QUERY}
+  (QUERY "Tweety can fly")
+  (KNOWLEDGE_BASE
+    (FACT "Tweety is a bird")
+    (FACT "Tweety is a penguin")
+    (RULE "all birds can fly" (priority 1))
+    (EXCEPTION "penguins cannot fly" (priority 2))
+  )
+)
+\end{verbatim}
+  \item \textbf{\texttt{eval\_node} Logic:} It would first conclude ``Tweety can fly'' from the priority 1 rule. Then, it would process the priority 2 exception, which defeats the initial conclusion. The final, deterministic ground truth is \texttt{False} (i.e., ``Tweety cannot fly'').
+\end{itemize}
+
+\subsection{Extending the Generation and Validation Pipeline}
+
+With a deterministic AST in place, the rest of the \texttt{verbose-ListOps.py} pipeline can be adapted:
+
+\begin{enumerate}
+  \item \textbf{\texttt{build\_random\_ast}:} This function would be updated to construct these new symbolic and logical ASTs from a set of predefined templates to ensure the generated problems coherence.
+
+  \item \textbf{\texttt{generate\_narrative}:}
+        \begin{itemize}
+          \item \textbf{Prompts:} The prompts would be modified. Instead of asking the LLM to narrate a scene about finding the \texttt{MAX} of a set of numbers, you would ask it to narrate a scene where characters reason about the most likely cause of an event.
+          \item \textbf{Narrative Anchors:} The concept of ``narrative anchors'' is even more powerful here. The result of an \texttt{ABDUCE} operation (``power surge'') could be given the anchor ``The Prime Theory,'' which then becomes a symbolic input for a subsequent reasoning step.
+        \end{itemize}
+
+  \item \textbf{Validation (\texttt{make\_number\_validator} and \texttt{validator.py}):} This part requires the most significant rewrite, shifting from numerical validation to symbolic validation.
+        \begin{itemize}
+          \item \textbf{The Goal Remains:} The core validation goals are the same: ensure all required inputs are mentioned, the (now symbolic) result is kept implicit, and no extraneous information or conclusions are leaked.
+          \item \textbf{New Logic:} Instead of \texttt{extract\_numbers\_from\_text}, a function like \texttt{extract\_facts\_from\_text} that uses string matching or regex to verify that the narrative mentions would need be added, for example, ``the lights flicker'' and ``a strange hum''.
+          \item \textbf{Implicit Result:} The validator would check that the word ``power surge'' is \textit{not} explicitly stated as the conclusion, but is only referenced by its anchor (``The Prime Theory'').
+        \end{itemize}
+\end{enumerate}
+
+\subsection{Summary}
+
+\texttt{verbose-ListOps.py}'s modular, AST-driven, and agentic-validation architecture provides a robust and sophisticated foundation to extend VLO to test deeper, symbolic reasoning by:
+
+\begin{enumerate}
+  \item \textbf{Defining the symbolic operators} and their deterministic evaluation logic.
+  \item \textbf{Creating templates for generating coherent, symbolic ASTs.}
+  \item \textbf{Rewriting the prompt templates} in \texttt{\_generate\_narrative\_recursive} to guide the LLM in narrating these logical problems.
+  \item \textbf{Replacing the numerical validation logic} with a symbolic/factual validation system that enforces the same core principles of operand presence and result implicitness.
+\end{enumerate}
+
+The result would be a novel and powerful benchmark that pushes LLMs beyond numerical computation into the realm of structured, verifiable, narrative-based logical reasoning.
+
+\section{Models Evaluated}
+\label{app:models_evaluated}
+Table \ref{tab:appendix_models_evaluated} lists the Large Language Models (LLMs) evaluated in this study on the Verbose ListOps benchmark. These models represent a range of state-of-the-art closed-source and open-source offerings available at the time of evaluation (16 May 2025).
+
+\begin{table}[h!]
+  \centering
+  \caption{Large Language Models Evaluated on Verbose ListOps.}
+  \label{tab:appendix_models_evaluated}
+  \resizebox{\textwidth}{!}{%
+    \begin{tabular}{llll}
+      \toprule
+      \textbf{Model Name}    & \textbf{Version}                & \textbf{Max Input Tok.}  & \textbf{OpenRouter Identifier}             \\
+      \midrule
+      \multicolumn{4}{l}{\textit{Closed-Source Models}}                                                                                \\
+      Gemini 2.5 Pro         & \texttt{preview-05-06}          & \SI{1}{M}                & \texttt{gemini-2.5-pro-preview}            \\
+      Gemini 2.5 Flash       & \texttt{preview-04-17}          & \SI{1}{M}                & \texttt{gemini-2.5-flash-preview:thinking} \\
+      o4 Mini High           & \texttt{2024-04-16}             & \SI{128}{K}              & \texttt{o4-mini-high}                      \\
+      GPT-4.1                & \texttt{2025-04-14}             & \SI{1}{M}                & \texttt{gpt-4.1}                           \\
+      Claude 3.7 Sonnet High & \texttt{20250219}               & \SI{200}{K}+             & \texttt{claude-3.7-sonnet:thinking}        \\
+      Grok 3 Mini High       & \texttt{latest (tested 16 May)} & \SI{128}{K}              & \texttt{grok-3-mini-beta}                  \\
+      \midrule
+      \multicolumn{4}{l}{\textit{Open-Source Models}}                                                                                  \\
+      DeepSeek R1            & \texttt{2025/01/20}             & Varies                   & \texttt{deepseek-r1}                       \\
+      DeepSeek V3            & \texttt{0324}                   & Varies                   & \texttt{deepseek-chat-v3-0324}             \\
+      Qwen 3 235B A22B       & \texttt{latest (tested 16 May)} & \SI{128}{K}+             & \texttt{qwen3-235b-a22b}                   \\
+      Llama 4 Maverick       & \texttt{Apr 5 2025}             & \SI{128}{K} - \SI{10}{M} & \texttt{llama-4-maverick}                  \\
+      \bottomrule
+    \end{tabular}%
+  }
+  \vspace{5pt}
+  \scriptsize{\textit{Note:} Claimed max input tokens are approximate and subject to change based on provider updates. Identifiers are illustrative examples based on common API/HF naming conventions and may vary. The specific models used for evaluation are as listed in Table 2 of the main paper.}
+\end{table}
+
+\section{Verbose ListOps Generation Hyperparameters}
+\label{app:generation_hyperparams}
+The Verbose ListOps benchmark instances were programmatically generated. Key parameters and settings for the generation process are detailed below. These correspond to the \texttt{Config} dataclass and other settings in the \texttt{verbose-ListOps.py} script.
+
+\subsection{Core ListOps Parameters}
+\begin{itemize}
+  \item \textbf{Maximum Operations (\texttt{MAX\_OPS}):} 8 (Controls the maximum depth/complexity of the ListOps Abstract Syntax Tree).
+  \item \textbf{Maximum Branching Factor (\texttt{MAX\_BRANCH}):} 8 (Maximum number of children for any operation node).
+  \item \textbf{Minimum Arity (\texttt{MIN\_ARITY}):} 4 (Minimum number of children for any operation node).
+  \item \textbf{Atom Value Range (\texttt{MIN\_ATOM\_VAL}, \texttt{MAX\_ATOM\_VAL}):} 1 to 30.
+  \item \textbf{Early Termination Probability (\texttt{EARLY\_TERMINATION\_PROBABILITY}):} 0.0 (Probability of terminating Abstract Syntax Tree branch growth before \texttt{MAX\_OPS} is reached).
+\end{itemize}
+
+\subsection{Narrative Generation Parameters}
+\begin{itemize}
+  \item \textbf{Narrative Generation Large Language Model (\texttt{MODEL} in \texttt{verbose-ListOps.py}):} \texttt{google/gemini-2.5-flash-preview:thinking} (accessed via OpenRouter API).
+  \item \textbf{Target Total Tokens (\texttt{MAX\_TOTAL\_TOKENS}):} \num{10000} (For the experiments reported in Table 2). The script can generate longer narratives.
+  \item \textbf{Padding Max Token Percentage (\texttt{PADDING\_MAX\_TOK\_PERCENT}):} 0.75 (Maximum percentage of the *remaining* token budget (after beats) that can be used for padding).
+  \item \textbf{Max Padding Paragraphs per Slot (\texttt{MAX\_PAD\_PARAGRAPHS}):} 30.
+  \item \textbf{Use Narrative Anchors (\texttt{USE\_NARRATIVE\_ANCHORS}):} True (Conceptual names for intermediate results).
+  \item \textbf{Use Large Language Model for Anchor Naming (\texttt{USE\_LLM\_NAMING}):} True.
+  \item \textbf{World Generation Parameters:}
+        \begin{itemize}
+          \item Min/Max Characters (\texttt{MIN\_WORLD\_CHARS}, \texttt{MAX\_WORLD\_CHARS}): 6 to 8.
+          \item Min/Max Concepts (\texttt{MIN\_WORLD\_CONCEPTS}, \texttt{MAX\_WORLD\_CONCEPTS}): 3 to 7.
+          \item World Generation Temperature (\texttt{WORLD\_GEN\_TEMP}): 0.9.
+        \end{itemize}
+  \item \textbf{Beat Generation Temperature (\texttt{BEAT\_GEN\_TEMP}):} 0.5.
+  \item \textbf{Creative Narrative Temperature (for Intro/Padding) (\texttt{CREATIVE\_NARRATIVE\_TEMP}):} 0.5.
+  \item \textbf{Anchor Generation Temperature (\texttt{ANCHOR\_GEN\_TEMP}):} 0.85.
+\end{itemize}
+
+\subsection{Iterative Validation and Retry Parameters}
+\begin{itemize}
+  \item \textbf{Large Language Model Validator Model (\texttt{LLM\_VALIDATOR\_MODEL}):} \texttt{google/gemini-2.5-flash-preview:thinking} (Used in the iterative beat generation loop).
+  \item \textbf{Large Language Model Validator Temperature (\texttt{LLM\_VALIDATOR\_TEMP}):} 0.05.
+  \item \textbf{Beat Revision Temperature (\texttt{BEAT\_REVISION\_TEMP}):} 0.1.
+  \item \textbf{Max Large Language Model Validation Iterations (\texttt{MAX\_LLM\_VALIDATION\_ITERATIONS}):} 6 (Internal loop for a single beat).
+  \item \textbf{Max Beat Retries (Outer Loop) (\texttt{MAX\_BEAT\_RETRIES}):} 5.
+  \item \textbf{Max Padding Retries (\texttt{MAX\_PAD\_RETRIES}):} 7.
+  \item \textbf{Max Introduction Scene Retries (\texttt{INTRO\_MAX\_RETRIES}):} 3.
+  \item \textbf{Max World Generation Retries (\texttt{WORLDGEN\_MAX\_RETRIES}):} 5.
+  \item \textbf{Retry Initial Delay (\texttt{RETRY\_INITIAL\_DELAY}):} 0.25 seconds (for general API call retries).
+\end{itemize}
+
+\subsection{Token and API Settings}
+\begin{itemize}
+  \item \textbf{Tokenizer (\texttt{encoder}):} \texttt{cl100k\_base} (via \texttt{tiktoken}).
+  \item \textbf{Max API Token Limit (\texttt{MAX\_API\_TOKEN\_LIMIT}):} \num{60000} (Safety buffer for Large Language Model calls, allowing space for reasoning tokens if supported by the model endpoint).
+  \item \textbf{Max Tokens Buffer (\texttt{MAX\_TOKENS\_BUFFER}):} 500 (Safety margin when checking against \texttt{MAX\_TOTAL\_TOKENS}).
+  \item \textbf{Max Requests Per Second (\texttt{MAX\_REQUESTS\_PER\_SECOND}):} 900.0 (Target for OpenRouter rate limiter, dynamically adjusted).
+\end{itemize}
+
+\subsection{Generation Cost}
+The generation of the 1000 samples (each $\approx$\SI{10}{k} tokens) for the main evaluation incurred an estimated API cost of approximately \$1500 USD using the OpenRouter API with the specified generation and validator Large Language Models. Evaluating all listed models on these samples incurred an additional estimated API cost of approximately \$500 USD.
+
+
+
+\section{Prompts}
+\label{app:prompts}
+This section provides examples of key prompts used in the Verbose ListOps generation pipeline. Note that these are templates and are dynamically filled with specific details (world information, Abstract Syntax Tree node data, etc.) at runtime.
+
+\subsection{World Generation Prompt}
+\label{app:prompts_worldgen}
+The Large Language Model is prompted to generate fictional world metadata (characters, genre, setting, object) in a structured JSON format.
+\begin{verbatim}
+System: You are an expert system designed to generate structured data in
+**strictly valid JSON format**. Your task is to create fictional world metadata.
+**CRITICAL JSON FORMATTING RULES (MUST FOLLOW EXACTLY):**
+1.  The entire output MUST be a single, valid JSON object.
+2.  All string keys and string values within the JSON must be enclosed in
+    double quotes (e.g., "name": "value").
+3.  **If a string value itself needs to contain a double quote character
+    (e.g., a nickname within a name), that internal double quote MUST be
+    escaped with a backslash (`\\`)**. For example, if a character's name is
+    `Dr. "Nickname" Who`, it must be represented in the JSON string as
+    `"name": "Dr. \\"Nickname\\" Who"`.
+4.  Ensure all commas, colons, curly braces `{{}}`, and square brackets `[]`
+    are correctly placed according to standard JSON syntax.
+5.  Do not include any text, explanations, or markdown (like ```json)
+    before or after the single JSON object.
+
+**Instructions for Content Generation:**
+1.  **Characters:** Generate exactly {num_characters} distinct characters. Each...
+    *   `name`: string (e.g., "Kaelen Vane", "Seraphina Moonwhisper")
+    *   `role`: string (e.g., "The grizzled warrior," "The cunning sorceress,")
+    *   `quirk`: string (e.g., "Collects antique spoons," "Only speaks in riddles,")
+2.  **Genre:** Define a `genre` as a string (e.g., "Steampunk Adventure").
+3.  **Setting:** Define a `setting` as a string (e.g., "A floating city...").
+4.  **Object:** Define an `object` as a string (plural noun, e.g., "etherium crystals").
+
+**Guidance for Content:** Strive for thematic coherence...
+Output ONLY the single, valid JSON object.
+
+User: (Dynamically filled with num_characters)
+\end{verbatim}
+The full prompt includes detailed examples and constraints for each field, ensuring the output adheres to the \texttt{WORLD\_SCHEMA}.
+
+\subsection{Narrative Anchor Generation Prompt}
+\label{app:prompts_anchor}
+For \texttt{OpNode}s, conceptual names (anchors) are generated to refer to their results.
+\begin{verbatim}
+System: You are a master {genre} storyteller and creative naming expert.
+Your task is to generate a short, evocative, and thematic `narrative anchor'.
+A narrative anchor is a creative, conceptual name that serves as a descriptive
+**label** or **stand-in** for the *result* of a specific event or calculation.
+
+Key Guidelines:
+1.  **Thematic:** MUST fit Genre, Setting, Primary Object.
+2.  **Concise:** 2 to {MAX_ANCHOR_WORDS} words (e.g., `The Sunstone's Core').
+3.  **No Numbers:** Absolutely no numerical values.
+4.  **No Direct Math Terms:** Avoid '\texttt{SUM}', '\texttt{MIN}', '\texttt{MAX}', etc.
+5.  **Represent Outcome:** Conceptually represent the result.
+6.  **Focus on Noun:** Should feel like a "thing" or "state".
+7.  **ABSOLUTE UNIQUENESS:** MUST NOT be in `List of anchors ALREADY USED'.
+    If unable, respond with "UNIQUE_FAILURE".
+
+User:
+Genre: {genre}
+Setting: {setting}
+Item: {primary_object}
+Concept/Operation Hint: {concept_keywords_for_prompt}
+
+**List of anchors ALREADY USED...:**
+{all_previous_anchors}
+
+Provide ONLY the new, unique anchor name... or `UNIQUE_FAILURE'.
+\end{verbatim}
+
+\subsection{Introduction Scene Generation Prompt}
+\label{app:prompts_intro}
+The introductory scene sets the stage.
+\begin{verbatim}
+System: You are a master {genre} storyteller. Your task is to write a
+compelling introductory scene... establish setting, introduce characters,
+hint at mystery related to {primary_object}.
+
+**ABSOLUTE NUMERICAL RULE FOR THIS INTRODUCTORY SCENE (CRITICAL):**
+1.  **ZERO NUMBERS IS THE PRIMARY GOAL:** Use NO numerical values (digits or words).
+2.  **EXTREMELY LIMITED EXCEPTION:** MAY use `one', `two', or `three' for
+    general, non-quantitative phrasing IF UNAVOIDABLE. NO OTHER NUMBERS.
+3.  **HANDLING CHARACTER NAMES WITH DIGITS:** Avoid stating numerical part as quantity.
+    Safer to avoid names with digits for intro.
+Focus on atmosphere, intrigue... Output ONLY the narrative text.
+
+User:
+**World Context:**
+- Genre: {genre}
+- Setting: {setting}
+- Primary Object of Interest: {object}
+- Characters to potentially feature: {char_names_roles}
+
+**Task:** Write an engaging introductory scene...
+**CRITICAL REMINDER - ADHERE TO THE ABSOLUTE NUMERICAL RULE...**
+Output ONLY the narrative text.
+\end{verbatim}
+
+\subsection{Main Beat Generation Prompt (Illustrative Core Rules)}
+\label{app:prompts_beatgen}
+This is the most complex prompt, dynamically constructed for each \texttt{OpNode}. The core is the \texttt{ultra\_strict\_instruction} section. Below is a conceptual summary of its key components:
+
+\begin{verbatim}
+System: You are a master {genre} storyteller with an exceptional eye for detail...
+Your paramount responsibilities for this scene are:
+1.  **Narrative Coherence:** ...
+2.  **ULTRA-STRICT NUMERICAL AND OPERATIONAL PRECISION:** ...
+    *   **Rule 1.A (Exact Atomic Frequencies):** Mention EACH required *new atomic*
+        number EXACTLY the specified number of times... AVOID summarizing.
+    *   **Rule 1.C (Conceptual Inputs):** Ensure prior results (conceptual inputs)
+        are *active numerical inputs* to THIS scene's operation.
+    *   **Operational Fidelity:** Narrated action MUST accurately reflect the
+        mathematical operation on ALL inputs.
+    *   **Rule 2 (Implicit Outcome):** Numerical result of THIS scene's operation MUST NOT
+        be stated explicitly.
+    *   **Rule 4 & 5 (Forbidden & No Other Numbers):** ...
+Output ONLY the clean narrative text...
+
+User:
+Story Scene Task: Create the narrative for the step resulting in '{current_node_conceptual_name}'
+(Scene {current_beat_num}/{total_beats})
+
+**Background for Your Scene...:**
+- Genre: {world_genre}
+- Setting: {world_setting}
+- Central Items: {primary_object_as_string}
+- Quantities from Previous Events (Conceptual Names & values for YOUR understanding -
+  DO NOT use values in story, DO use names if Rule 1.C applies): {conceptual_inputs_context_str}
+- New Numbers Introduced (Values & required frequencies for YOUR understanding - Use word
+  form, ALL must be mentioned with exact frequencies as per Rule 1.A): {atomic_inputs_context_str_detailed_for_prompt}
+
+**Your Scene's Core Action & Narrative Goal (Follow this closely):**
+This scene needs to narrate an event or discovery that mirrors the mathematical
+operation: **{op_label}**. The central items are '{safe_primary_object_for_fstring}'.
+Inputs to consider:
+  1. **Conceptual Inputs:** {conceptual_input_names_only_str_for_action}.
+  2. **New Atomic Number Inputs:** {atomic_inputs_context_str_detailed_for_prompt}.
+Your narrative must clearly show ALL these inputs... being involved in an action
+that reflects the '{op_label}' operation.
+  - **Action (Specific to Op, e.g., \texttt{SUM}):** Characters combine/tally ALL inputs...
+The outcome will be conceptually known as '{current_node_conceptual_name}'.
+Its actual numerical size ('{num_to_words(correct_result)}') must not be stated.
+
+**Narrative Challenge & Your Writing Guide for This Scene (CRITICAL...):**
+**1. Key Details to Feature (Inputs in Action & Their EXACT Frequencies):**
+
+[...refer to codebase for full prompt...]
+
+{prior_results_handling_rule_for_prompt} (This is Rule 6)
+
+**Operational Fidelity (CRITICAL):** The narrated action MUST accurately reflect
+the mathematical operation '{op_label}' on ALL inputs (conceptual & atomic).
+...
+**MANDATORY PRE-WRITING CHECKLIST & MENTAL WALKTHROUGH...:**
+(Detailed checklist items for the LLM to mentally verify its plan against each rule)
+...
+**Continue From (End of last scene):**
+"...{context_snippet}..."
+
+**Your Response:**
+Write ONLY the narrative text for this new scene...
+\end{verbatim}
+The actual prompt is highly detailed, including specific examples for \texttt{MEDIAN} operations and a pre-writing checklist for the Large Language Model. The \texttt{ultra\_strict\_instruction} section is dynamically built based on the current node's operation, its inputs (atomic and conceptual), its result, and the overall Abstract Syntax Tree context to define precisely which numbers are allowed, required (with exact frequencies), or forbidden for that specific beat.
+
+\subsection{Large Language Model Validator Prompt (Iterative Beat Validation)}
+\label{app:prompts_llm_validator}
+During the iterative beat generation, another Large Language Model validates the generator's output.
+\begin{verbatim}
+System: You are an AI numerical compliance checker and literary critic.
+Your ONLY task is to evaluate a story `beat' against a provided set of
+ULTRA-STRICT numerical and storytelling rules.
+You MUST output your response as a single, valid JSON object and NOTHING ELSE,
+adhering precisely to the provided schema.
+Your analysis must be meticulous, focusing on exact numerical frequencies...
+
+User:
+You are an AI numerical compliance checker. Evaluate the `Generated Beat Text'
+below with ABSOLUTE PRECISION regarding its numerical content, operational
+fidelity, and adherence to the `ULTRA-STRICT NUMBER RULES (Generator's
+Writing Guide)' provided.
+
+[...see codebase for full prompt...]
+
+**ULTRA-STRICT NUMBER RULES (Generator's Writing Guide - GROUND TRUTH FOR VALIDATION):**
+---
+{ultra_strict_instruction_for_llm_validator_context} (This is the full ruleset given to the generator)
+---
+
+**VALIDATION ALGORITHM - FOLLOW EXACTLY...:**
+(Detailed step-by-step algorithm for the validator LLM to check each rule:
+ Phase 1: Number Identification & Counting.
+ Phase 2: Rule-by-Rule Compliance Check (Rule 0.A Conceptual Inputs,
+          0.C Operational Fidelity, 1.A Atomic Frequencies, 1.B No Re-listing,
+          2 Outcome Handling, 3 Permitted Flourishes, 4 Forbidden, 5 No Other,
+          6 Prior Result Handling).
+ Phase 3: Constructing JSON Response according to VALIDATOR_RESPONSE_SCHEMA,
+          including `is_valid`, `explanation_for_generator`, `explanation_for_audit`,
+          `overall_revision_summary_for_generator_prompt`, `suggested_revisions`.)
+
+**Generated Beat Text to Evaluate:**
+---
+{generated_text_cleaned}
+---
+\end{verbatim}
+The validator's prompt includes the full set of rules given to the generator, the generated text, and a detailed algorithm for how the validator should check compliance and structure its JSON response.
+
+\subsection{Final Question Template}
+\label{app:prompts_final_question}
+The template for the final question appended to the narrative.
+\begin{verbatim}
+FINAL_QUESTION_TEMPLATE = Template(
+    "\n\n---\n\n**Question:** The story describes a sequence of operations that "
+    "modify a quantifiable measure related to '$primary_object'. Following this "
+    "entire sequence, what is the final, precise numerical value of this measure "
+    "at the conclusion of all activities? Provide only the single integer."
+)
+\end{verbatim}
+Here, \texttt{\$primary\_object} is substituted with the specific object generated for the world (e.g., "etherium crystals").
+
+\section{Dataset Details and Access}
+\label{app:dataset_details}
+The Verbose ListOps dataset is available on Hugging Face Datasets:
+\begin{itemize}
+  \item \textbf{Dataset Link:} \url{https://huggingface.co/datasets/NeurIPSDB2025-shj32df/verbose-ListOps}
+  \item \textbf{Croissant Metadata:} A Croissant metadata file for enhanced discoverability and interoperability is available at: \url{https://huggingface.co/api/datasets/NeurIPSDB2025-shj32df/verbose-ListOps/croissant}
+\end{itemize}
+
+The dataset is provided in JSON Lines (\texttt{.jsonl}) format.
+\begin{itemize}
+  \item \texttt{[1\_RESEARCHER\_DETAIL]\_DATASET\_\*.jsonl}: Contains comprehensive raw generated data for each sample, including detailed generation metadata, full Abstract Syntax Tree structure, all scenes, conceptual references, and beat revision logs. This file is primarily for research and debugging the generation process.
+  \item \texttt{[2\_EVAL\_READY]\_DATASET\_\*.jsonl}: A leaner version containing all successfully generated samples by \texttt{verbose-ListOps.py}, with fields relevant for model evaluation. This is the dataset before external validation by \texttt{validator.py}.
+  \item \texttt{[4\_FINAL\_EVAL\_CLEANED]\_DATASET\_\*.jsonl}: The final, cleaned dataset intended for benchmarking. This version contains only samples that have passed an additional validation step by the \texttt{validator.py} script, ensuring higher fidelity of the narrative to the underlying ListOps task according to an external Large Language Model judge.
+\end{itemize}
+The specific dataset used for the results reported in this paper is the \texttt{[4\_FINAL\_EVAL\_CLEANED]} version corresponding to the \SI{10}{k} token length narratives.
+
+\subsection{Key Dataset Fields (in \texttt{EVAL\_READY} and \texttt{FINAL\_EVAL\_CLEANED} versions)}
+Table \ref{tab:appendix_dataset_fields} describes the main fields in the evaluation-ready JSONL files.
+\begin{table}[h!]
+  \centering
+  \caption{Key fields in the Verbose ListOps evaluation-ready dataset files.}
+  \label{tab:appendix_dataset_fields}
+  \begin{tabular}{p{0.25\linewidth} p{0.65\linewidth}}
+    \toprule
+    \textbf{Field Name}              & \textbf{Description}                                                                                                                             \\
+    \midrule
+    \texttt{id}                      & Unique identifier for the sample (string).                                                                                                       \\
+    \texttt{full\_text\_for\_eval}   & The complete text provided to the Large Language Model for evaluation, consisting of the narrative body followed by the final question (string). \\
+    \texttt{ground\_truth\_value}    & The single integer answer to the ListOps problem (integer).                                                                                      \\
+    \texttt{ast\_str}                & A string representation of the ListOps Abstract Syntax Tree in prefix notation (string).                                                         \\
+    \texttt{num\_operations}         & The total number of operation nodes (non-atom nodes) in the Abstract Syntax Tree (integer).                                                      \\
+    \texttt{token\_count\_narrative} & The approximate token count of the narrative body (excluding the question), based on \texttt{cl100k\_base} tokenizer (integer).                  \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+The \texttt{RESEARCHER\_DETAIL} file contains additional fields like \texttt{world\_data}, \texttt{scenes\_detail}, \texttt{conceptual\_references}, \texttt{beat\_revision\_details}, and extensive \texttt{generation\_metadata}.
+
+\section{Evaluation Details}
+\label{app:evaluation_details}
+\begin{itemize}
+  \item \textbf{Evaluation Metric:} Performance is measured by exact match accuracy. The Large Language Model's predicted single integer answer must exactly match the \texttt{ground\_truth\_value} for the sample.
+  \item \textbf{Number of Samples:} For the main results reported in Table 2, each model was evaluated on 1000 distinct Verbose ListOps samples (from the \texttt{FINAL\_EVAL\_CLEANED} dataset version, with $\approx$\SI{10}{k} token narrative length).
+  \item \textbf{External Validation (\texttt{validator.py}):} The \texttt{validator.py} script performs an additional layer of validation on the generated narratives. It uses a separate, more powerful thinking Large Language Model (\texttt{google/gemini-2.5-pro-preview} as specified in \texttt{validator.py}) with extensive prompting to assess whether each step in the narrative correctly reflects the corresponding Abstract Syntax Tree operation, its inputs, and implied result, according to the benchmark's rules (including implicit intermediate results and conceptual referencing). Samples that fail this external validation are excluded from the \texttt{FINAL\_EVAL\_CLEANED} dataset. This script outputs detailed validation results and helps ensure the quality and fidelity of the benchmark instances used for final model evaluation.
+\end{itemize}
+
+\section{Code Availability}
+\label{app:code_availability}
+The code for generating the Verbose ListOps benchmark and the \texttt{validator.py} script are open-sourced and available at:
+\begin{itemize}
+  \item \textbf{GitHub Repository:} \url{https://github.com/Neurips-anon-h1ndi29v/verbose-ListOps}.
+  \item \textbf{Dataset:} \url{https://huggingface.co/datasets/NeurIPSDB2025-shj32df/verbose-ListOps/tree/main}.
+\end{itemize}
+The repository contains the \texttt{verbose-ListOps.py} script for dataset generation and the \texttt{validator.py} script for post-generation validation and cleaning. Detailed instructions for running the scripts and reproducing the dataset are provided in the repository's README file.
+
+\end{document}
