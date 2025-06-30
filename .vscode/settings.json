@@ -1,0 +1,21 @@
+{
+    "latex-workshop.formatting.latex": "latexindent",
+    "latex-workshop.formatting.latexindent.path": "/opt/homebrew/bin/latexindent",
+    "latex-workshop.formatting.latexindent.args": [
+        "-w",
+        "-m",
+        "-l",
+        ".latexindent.yaml",
+        "%TMPFILE%"
+    ],
+    "editor.formatOnSave": true,
+    "[latex]": {
+        "editor.formatOnSave": true
+    },
+    "latex-workshop.linting.bibtex.enabled": false,
+    "latex-workshop.message.warning.show": false,
+    "latex-workshop.message.latexlog.exclude": [
+        "Citation .* undefined",
+        "There were undefined citations"
+    ]
+}

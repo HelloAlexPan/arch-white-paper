@@ -1,0 +1,54 @@
+# latexindent configuration file
+# Only adds blank lines between paragraphs, no text wrapping
+
+# Completely disable text wrapping
+textWrapOptions:
+  columns: 0
+  perCodeBlockBasis: 0
+
+# Modify line breaks settings
+modifyLineBreaks:
+  # Add two line breaks after paragraphs (one blank line)
+  paragraphs:
+    EndFinishesWithLineBreak: 2
+    BeginStartsOnOwnLine: 0
+    BodyStartsOnOwnLine: 0
+    EndStartsOnOwnLine: 0
+    # Disable paragraph reformatting
+    removeParagraphLineBreaks:
+      all: 0
+    
+  # Preserve existing blank lines
+  preserveBlankLines: 1
+  condenseMultipleBlankLinesInto: 2
+  
+  # Don't wrap text in any environment
+  textWrap: 0
+  
+  # Add blank line after sections/subsections
+  specialBeginEnd:
+    subsection:
+      SpecialBodyStartsOnOwnLine: 1
+      SpecialEndStartsOnOwnLine: 0
+    section:
+      SpecialBodyStartsOnOwnLine: 1
+      SpecialEndStartsOnOwnLine: 0
+
+# Default indentation
+defaultIndent: "  "
+
+# Don't remove trailing whitespace
+removeTrailingWhitespace:
+  beforeProcessing: 0
+  afterProcessing: 0
+
+# Don't modify line breaks unless explicitly set
+poly-switches:
+  textWrapOptions: 0
+
+# Backup settings
+backupExtension: .bak
+onlyOneBackUp: 1
+
+# Don't create multiple backups
+cycleThroughBackUps: 0 

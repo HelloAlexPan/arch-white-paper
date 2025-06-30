@@ -1,0 +1,164 @@
+\documentclass{article}
+% Auto-build test comment - SAVE THIS FILE TO TEST 
+
+\usepackage{amsmath}
+\usepackage{amssymb}    % For \checkmark, \texttimes, etc.
+\usepackage[table]{xcolor} % For cell colors in table, and \yesmark, \nomark
+\usepackage{array}      % For better column definitions in tables
+\usepackage{booktabs}   % For professional-looking tables (\toprule, \midrule, \bottomrule)
+\usepackage{caption}    % For table captions
+\usepackage{graphicx}   % For \resizebox
+\usepackage{makecell}   % For \makecell
+\usepackage{enumitem}   % For custom enumerate labels
+
+\PassOptionsToPackage{table}{xcolor}
+\usepackage{xcolor}  % loads xcolor with the table option
+
+% Load inputenc and fontenc early
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usepackage{edictive-arch}
+
+\usepackage{svg}
+\usepackage{float}
+
+\usepackage{array}
+
+\usepackage{siunitx}
+% \sisetup{detect-all} % Deprecated
+\sisetup{ % Modern siunitx font detection
+    mode = match,
+    propagate-math-font = true,
+    reset-math-version = false,
+    reset-text-family = false,
+    reset-text-series = false,
+    reset-text-shape = false,
+    text-family-to-math = true,
+    text-series-to-math = true
+}
+
+\usepackage{url,booktabs,amsfonts,nicefrac,microtype,xcolor}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+    citecolor=blue, % Color for citations
+}
+
+% for table
+\usepackage{array}
+\usepackage{amssymb}    % \checkmark
+\usepackage{graphicx}   % \resizebox
+\usepackage{makecell}
+
+% --- column types ---
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}m{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}m{#1}}
+
+% yes/no marks
+\newcommand{\yesmark}{{\color{green!60!black}\checkmark}}
+\newcommand{\nomark}{{\color{red}$\times$}}
+\newcommand{\somewhatmark}{{\color{orange}$\approx$}}
+
+
+% Define \ListOpsparams
+\newcommand{\ListOpsparams}{(a maximum of 8 operations, a minimum arity of 4, and a maximum branching factor of 8 of the ListOps problem being narrativized)}
+
+\usepackage{natbib}
+\setcitestyle{authoryear,open={(},close={)}} % For (Author, Year) style citations
+
+\title{Project Helios: Automating \\Predictive Signal Extraction}
+
+\author{
+  Alex Pan\\
+  Founder, Edictive
+}
+
+\date{}  % omit the date
+
+\begin{document}
+\begingroup
+\renewcommand\thefootnote{}
+\endgroup
+\maketitle
+\begin{abstract}
+	While Large Language Models (LLMs) can improve time-series forecasting by incorporating textual information \citep{ansari2024chronoslearninglanguagetime, das2024decoderonlyfoundationmodeltimeseries}, the antecedent task of extracting predictive signals from unstructured text remains a critical bottleneck. We introduce Project Helios, a conceptual framework that operationalizes the hypothesis that this process can be automated by unifying synthetic data generation and automatic prompt optimization (APO). Helios's two-pillar architecture features (i) \textit{Auto-Foundry}, a zero-configuration data generator using correlated sampling \citep{kowshik2024corrsynthcorrelatedsampling} and hard-case mining \citep{wang2023selfinstructaligninglanguagemodels}, and (ii) \textit{Helios-Ensemble}, a multi-objective prompt optimizer leveraging a novel ParetoStraGo 2.0 algorithm \citep{zhao2025pareto, wu2024stragoharnessingstrategicguidance}. By tightly coupling these components, Helios provides a turnkey solution that transforms a high-level signal definition into an optimized, production-ready prompt, dramatically accelerating the experimental cycle for signal engineering. This paper's contributions are: (1) the conceptual architecture, (2) a map of key design decisions, (3) a preliminary feasibility analysis, and (4) a research agenda, all motivated by the scaling imperatives of modern AI \citep{kaplan2020scalinglawsneurallanguage}.
+
+\end{abstract}
+
+\section{Introduction}
+\label{sec:introduction}
+The application of Large Language Models (LLMs) to time-series analysis is an increasingly prominent field, driven by their unique ability to integrate rich, unstructured textual context into the forecasting process \citep{williams2025contextkeybenchmarkforecasting, liu2024autotimesautoregressivetimeseries, jin2024timellmtimeseriesforecasting}. This capacity for contextual understanding allows LLMs to outperform traditional models in scenarios where external information, conveyed through natural language, is critical for accurate prediction. A central challenge in enterprise forecasting is the extraction of these predictive signals from vast quantities of unstructured text, such as sales call transcripts, support tickets, and operational logs, which often contain high-value leading indicators of future outcomes.
+
+However, the process of transforming this raw text into structured, predictive features is a significant bottleneck. The typical workflow is slow, expensive, and bespoke. It involves human annotators labeling thousands of examples, a process with significant operational overhead, followed by ML engineers fine-tuning specialized models to extract the desired signals. This multi-stage, human-in-the-loop cycle not only is costly but also severely limits the speed of experimentation, making it impractical to test a wide combinatorial space of potential signals.
+
+We hypothesize that the same contextual understanding that LLMs leverage for forecasting can be repurposed to address this fundamental challenge of signal extraction. The process of identifying a signal, such as `consequence awareness' in a sales transcript, is itself a predictive task conditioned on a user-provided rubric. An LLM's ability to generalize from instructions makes it adept at this form of rubric-guided labeling \citep{shin2020autopromptelicitingknowledgelanguage}. To operationalize this insight, we turn to two rapidly advancing fields: synthetic data generation \citep{patel2024datadreamertoolsyntheticdata, kowshik2024corrsynthcorrelatedsampling} and automatic prompt optimization (APO) \citep{yang2024largelanguagemodelsoptimizers, zhao2025pareto}.
+
+While prior work has explored these fields separately, a significant gap exists in their integration. Existing systems do not use the downstream optimization task to guide the data generation process, creating a disconnect where a data generator operates blind to the needs of the optimizer. Project Helios is designed to fill this gap by creating a tightly-coupled, self-improving system where the data generator is explicitly tasked with producing data that is maximally informative for discovering an optimal, multi-objective prompt.
+
+This paper makes the following primary contributions:
+\begin{itemize}
+	\item We introduce \textbf{Project Helios}, a novel conceptual framework that automates predictive signal extraction by tightly coupling synthetic data generation with multi-objective prompt optimization.
+	\item We present \textbf{Auto-Foundry}, a synthetic data generation pillar that uses correlated sampling and hard-case mining to produce diverse and challenging datasets tailored to a specified signal rubric.
+	\item We detail \textbf{Helios-Ensemble}, a multi-objective prompt optimization pillar featuring a novel hybrid algorithm, ParetoStraGo 2.0, which efficiently discovers prompts that are Pareto-optimal across multiple signal-extraction objectives.
+\end{itemize}
+
+This paper is structured as follows. Section \ref{sec:evolution} (TODO) traces the evolution of signal-extraction solutions. Section \ref{sec:problem} (TODO) formalizes the problem and key design decisions. Section \ref{sec:architecture} (TODO) presents the high-level Helios architecture, followed by detailed descriptions of its two pillars in Sections \ref{sec:autofoundry} (TODO) and \ref{sec:heliosensemble} (TODO). We discuss feasibility in Section \ref{sec:feasibility} (TODO), present related work in Section \ref{sec:relatedwork} (TODO), and conclude in Section \ref{sec:conclusion} (TODO).
+
+\section{Evolution of Signal-Extraction Solutions}
+\label{sec:evolution}
+This section traces the evolution of solutions for extracting predictive signals from unstructured text, framing it in three stages. We begin with the traditional, manual-intensive paradigm and its inherent limitations. We then examine the current stage of partial automation, where synthetic data generation and prompt optimization are treated as separate, disconnected processes. Finally, we articulate the vision for Project Helios as the third stage: a tightly-coupled, fully-automated architecture that represents the logical and necessary next step in scaling signal engineering for enterprise applications.
+
+\subsection{Stage 1: Human Annotation and Bespoke Models}
+The conventional approach to signal extraction is a direct but costly process rooted in manual human effort. In this paradigm, domain experts or annotators are tasked with meticulously labeling thousands of text examples according to a predefined rubric. For instance, to create a signal for ``customer churn risk,'' annotators would read through support tickets and manually flag instances exhibiting frustration or explicit threats to cancel a service. This labeled dataset is then used by machine learning engineers to train or fine-tune a bespoke model, often a specialized classifier, to automate the signal extraction on new, unseen data.
+
+This stage is characterized by significant drawbacks in time, cost, and scalability. A more subtle but equally critical failure mode arises from the nature of the data itself. Datasets created via manual annotation of a raw corpus often reflect the natural, imbalanced distribution of events, where high-value signals are rare occurrences \citep{yu2023largelanguagemodelattributed}. Models trained on such data become biased towards the majority class, leading to poor performance on the underrepresented minority classes. This deficit is directly captured by a low macro F1 score, which penalizes poor performance on rare classes. This inflexibility and performance skew make it impractical for organizations to explore a wide range of potential predictive signals, severely limiting the speed of hypothesis testing and model development.
+
+\subsection{Stage 2: Partial Automation with Decoupled Components}
+The limitations of manual annotation have driven the development of partially automated solutions. These solutions typically follow one of two independent paths: generating synthetic data to replace human annotation or using automated prompt optimization (APO) to refine LLM instructions.
+The first path focuses exclusively on \textbf{synthetic data generation}. Techniques like back-translation \citep{sennrich2016improvingneuralmachinetranslation} or direct generation from LLMs using tools like DataDreamer \citep{patel2024datadreamertoolsyntheticdata} can create large volumes of labeled data at a fraction of the cost of manual annotation. However, when decoupled from the downstream optimization task, the generator operates in a vacuum. It may produce a dataset that lacks the diversity or challenging examples needed to discover a robust, generalizable prompt, leading to "easy" data that results in over-fitted solutions.
+The second path concentrates on \textbf{automatic prompt optimization}. This field has explored methods ranging from discrete textual edits based on pseudo-gradients \citep{pryzant2023automaticpromptoptimizationgradient} to the tuning of continuous soft prompts \citep{lester2021powerscaleparameterefficientprompt}. While powerful, APO methods are fundamentally constrained by the quality of the evaluation dataset. If the data lacks diversity or fails to represent hard-to-classify edge cases, the optimizer may converge on a prompt that performs well on the limited evaluation set but fails to generalize to real-world data. Furthermore, isolated APO systems often struggle to balance the conflicting, multi-objective nature of signal extraction (e.g., accuracy vs. latency vs. cost).
+\subsection{Stage 3: Tightly-Coupled Generation and Optimization}
+The core insight of Project Helios is that the independent paths of Stage 2 are destined to merge. A truly automated and effective system requires tight coupling between the data generator and the prompt optimizer, creating a closed-loop system where each component informs and improves the other. The limitations of decoupled systems are clear: generators risk producing monotonous data that lacks the diversity and challenging edge cases required for robust optimization, a challenge of bias and mode collapse well-documented in synthetic data literature \citep{yu2023largelanguagemodelattributed}. Simultaneously, optimizers risk ``vacuum optimization,'' perfecting a prompt for a non-representative dataset.
+The vision for Helios is a Stage 3 architecture that unifies these processes. In this model, the prompt optimizer's performance on its multi-objective function provides direct feedback to the data generator. The generator, in turn, is tasked with producing data that is maximally informative for the optimizer. This includes leveraging techniques like correlated sampling to ensure data diversity \citep{kowshik2024corrsynthcorrelatedsampling} and hard-case mining to surface examples where the current optimal prompt is weakest. This integrated approach is not merely an improvement but a necessity, driven by the scaling imperatives of modern AI \citep{kaplan2020scalinglawsneurallanguage}, where the sheer volume of data and complexity of signals demand an end-to-end, zero-touch automation framework.
+
+% \begin{figure}[t]
+% \centering
+% Placeholder for the figure. A diagram similar to Lu et al. (2024), Figure 1.
+% It would show three columns: Stage 1 (Manual), Stage 2 (Partial Automation), Stage 3 (Helios).
+% Stage 1: Human -> Bespoke Model
+% Stage 2: Two separate flows: (A) Synthetic Data Gen -> Data; (B) Data -> APO -> Prompt
+% Stage 3: A closed loop: Auto-Foundry -> Data -> Helios-Ensemble -> Prompt -> Feedback to Auto-Foundry
+% \vspace{2cm}
+% \caption{The evolution of signal-extraction solutions, from manual annotation pipelines (Stage 1) to the current state of partial, decoupled automation (Stage 2). Project Helios represents the vision for Stage 3, where synthetic data generation and prompt optimization are tightly coupled in a self-improving loop.}
+% \label{fig:evolution_timeline}
+% \end{figure}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\bibliographystyle{plainnat}
+\bibliography{edictive-arch}
+
+\end{document}

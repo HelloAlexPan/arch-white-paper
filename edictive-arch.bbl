@@ -1,0 +1,190 @@
+\begin{thebibliography}{35}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Ansari et~al.(2024)Ansari, Stella, Turkmen, Zhang, Mercado, Shen, Shchur, Rangapuram, Arango, Kapoor, Zschiegner, Maddix, Wang, Mahoney, Torkkola, Wilson, Bohlke-Schneider, and Wang]{ansari2024chronoslearninglanguagetime}
+Abdul~Fatir Ansari, Lorenzo Stella, Caner Turkmen, Xiyuan Zhang, Pedro Mercado, Huibin Shen, Oleksandr Shchur, Syama~Sundar Rangapuram, Sebastian~Pineda Arango, Shubham Kapoor, Jasper Zschiegner, Danielle~C. Maddix, Hao Wang, Michael~W. Mahoney, Kari Torkkola, Andrew~Gordon Wilson, Michael Bohlke-Schneider, and Yuyang Wang.
+\newblock Chronos: Learning the language of time series, 2024.
+\newblock URL \url{https://arxiv.org/abs/2403.07815}.
+
+\bibitem[Arjovsky et~al.(2017)Arjovsky, Chintala, and Bottou]{arjovsky2017wassersteingan}
+Martin Arjovsky, Soumith Chintala, and Léon Bottou.
+\newblock Wasserstein gan, 2017.
+\newblock URL \url{https://arxiv.org/abs/1701.07875}.
+
+\bibitem[Ashizawa et~al.(2025)Ashizawa, Hirose, Yoshinari, Uchida, and Shirakawa]{ashizawa2025banditbasedpromptdesignstrategy}
+Rin Ashizawa, Yoichi Hirose, Nozomu Yoshinari, Kento Uchida, and Shinichi Shirakawa.
+\newblock Bandit-based prompt design strategy selection improves prompt optimizers, 2025.
+\newblock URL \url{https://arxiv.org/abs/2503.01163}.
+
+\bibitem[Bass et~al.(2003)Bass, Clements, and Kazman]{inbook}
+Len Bass, Paul Clements, and Rick Kazman.
+\newblock \emph{Software Architecture In Practice}.
+\newblock 01 2003.
+\newblock ISBN 978-0321154958.
+
+\bibitem[Cui et~al.(2024)Cui, Zhang, Li, Sun, Lopez, Das, Malin, and Kumar]{cui2024phaseevounifiedincontextprompt}
+Wendi Cui, Jiaxin Zhang, Zhuohang Li, Hao Sun, Damien Lopez, Kamalika Das, Bradley Malin, and Sricharan Kumar.
+\newblock {PhaseEvo}: Towards unified in-context prompt optimization for large language models, 2024.
+\newblock URL \url{https://arxiv.org/abs/2402.11347}.
+
+\bibitem[Cui et~al.(2025)Cui, Zhang, Li, Sun, Lopez, Das, Malin, and Kumar]{cui2025automaticpromptoptimizationheuristic}
+Wendi Cui, Jiaxin Zhang, Zhuohang Li, Hao Sun, Damien Lopez, Kamalika Das, Bradley~A. Malin, and Sricharan Kumar.
+\newblock Automatic prompt optimization via heuristic search: A survey, 2025.
+\newblock URL \url{https://arxiv.org/abs/2502.18746}.
+
+\bibitem[Das et~al.(2024)Das, Kong, Sen, and Zhou]{das2024decoderonlyfoundationmodeltimeseries}
+Abhimanyu Das, Weihao Kong, Rajat Sen, and Yichen Zhou.
+\newblock A decoder-only foundation model for time-series forecasting, 2024.
+\newblock URL \url{https://arxiv.org/abs/2310.10688}.
+
+\bibitem[Fedoseev et~al.(2024)Fedoseev, Dimitrov, Gehr, and Vechev]{fedoseev2024constraint}
+Timofey Fedoseev, Dimitar~Iliev Dimitrov, Timon Gehr, and Martin Vechev.
+\newblock Constraint-based synthetic data generation for llm mathematical reaso.
+\newblock In \emph{The 4th Workshop on Mathematical Reasoning and AI at NeurIPS'24}, 2024.
+\newblock URL \url{https://openreview.net/forum?id=hR4Hskr4GX}.
+
+\bibitem[Jin et~al.(2024)Jin, Wang, Ma, Chu, Zhang, Shi, Chen, Liang, Li, Pan, and Wen]{jin2024timellmtimeseriesforecasting}
+Ming Jin, Shiyu Wang, Lintao Ma, Zhixuan Chu, James~Y. Zhang, Xiaoming Shi, Pin-Yu Chen, Yuxuan Liang, Yuan-Fang Li, Shirui Pan, and Qingsong Wen.
+\newblock Time-llm: Time series forecasting by reprogramming large language models, 2024.
+\newblock URL \url{https://arxiv.org/abs/2310.01728}.
+
+\bibitem[Kaplan et~al.(2020)Kaplan, McCandlish, Henighan, Brown, Chess, Child, Gray, Radford, Wu, and Amodei]{kaplan2020scalinglawsneurallanguage}
+Jared Kaplan, Sam McCandlish, Tom Henighan, Tom~B. Brown, Benjamin Chess, Rewon Child, Scott Gray, Alec Radford, Jeffrey Wu, and Dario Amodei.
+\newblock Scaling laws for neural language models, 2020.
+\newblock URL \url{https://arxiv.org/abs/2001.08361}.
+
+\bibitem[Karras et~al.(2020)Karras, Laine, Aittala, Hellsten, Lehtinen, and Aila]{karras2020analyzingimprovingimagequality}
+Tero Karras, Samuli Laine, Miika Aittala, Janne Hellsten, Jaakko Lehtinen, and Timo Aila.
+\newblock Analyzing and improving the image quality of stylegan, 2020.
+\newblock URL \url{https://arxiv.org/abs/1912.04958}.
+
+\bibitem[Kowshik et~al.(2024)Kowshik, Divekar, and Malik]{kowshik2024corrsynthcorrelatedsampling}
+Suhas~S Kowshik, Abhishek Divekar, and Vijit Malik.
+\newblock Corrsynth -- a correlated sampling method for diverse dataset generation from llms, 2024.
+\newblock URL \url{https://arxiv.org/abs/2411.08553}.
+
+\bibitem[Lester et~al.(2021)Lester, Al-Rfou, and Constant]{lester2021powerscaleparameterefficientprompt}
+Brian Lester, Rami Al-Rfou, and Noah Constant.
+\newblock The power of scale for parameter-efficient prompt tuning, 2021.
+\newblock URL \url{https://arxiv.org/abs/2104.08691}.
+
+\bibitem[Liu et~al.(2024{\natexlab{a}})Liu, Kang, Zhao, Kuang, Jiang, Sun, and Wu]{liu2024evolvingknowledgedistillationlarge}
+Chengyuan Liu, Yangyang Kang, Fubang Zhao, Kun Kuang, Zhuoren Jiang, Changlong Sun, and Fei Wu.
+\newblock Evolving knowledge distillation with large language models and active learning, 2024{\natexlab{a}}.
+\newblock URL \url{https://arxiv.org/abs/2403.06414}.
+
+\bibitem[Liu et~al.(2024{\natexlab{b}})Liu, Qin, Huang, Wang, and Long]{liu2024autotimesautoregressivetimeseries}
+Yong Liu, Guo Qin, Xiangdong Huang, Jianmin Wang, and Mingsheng Long.
+\newblock Autotimes: Autoregressive time series forecasters via large language models, 2024{\natexlab{b}}.
+\newblock URL \url{https://arxiv.org/abs/2402.02370}.
+
+\bibitem[Lu et~al.(2024)Lu, Zhu, Xu, Xing, and Whittle]{lu2024referencearchitecturedesigningfoundation}
+Qinghua Lu, Liming Zhu, Xiwei Xu, Zhenchang Xing, and Jon Whittle.
+\newblock A reference architecture for designing foundation model based systems, 2024.
+\newblock URL \url{https://arxiv.org/abs/2304.11090}.
+
+\bibitem[Mahalle et~al.(2024)Mahalle, Wasatkar, and Shinde]{mahalle2024datacentric}
+Parikshit~N. Mahalle, Nilima~N. Wasatkar, and Gajanan~R. Shinde, editors.
+\newblock \emph{Data-Centric Artificial Intelligence for Multidisciplinary Applications}.
+\newblock CRC Press, 2024.
+\newblock ISBN 9781040031131.
+\newblock URL \url{https://books.google.com.au/books?id=tqUIEQAAQBAJ}.
+
+\bibitem[Nadas et~al.(2025)Nadas, Diosan, and Tomescu]{nadas2025syntheticdatagenerationusing}
+Mihai Nadas, Laura Diosan, and Andreea Tomescu.
+\newblock Synthetic data generation using large language models: Advances in text and code, 2025.
+\newblock URL \url{https://arxiv.org/abs/2503.14023}.
+
+\bibitem[Opsahl-Ong et~al.(2024)Opsahl-Ong, Ryan, Purtell, Broman, Potts, Zaharia, and Khattab]{opsahlong2024optimizinginstructionsdemonstrationsmultistage}
+Krista Opsahl-Ong, Michael~J Ryan, Josh Purtell, David Broman, Christopher Potts, Matei Zaharia, and Omar Khattab.
+\newblock Optimizing instructions and demonstrations for multi-stage language model programs, 2024.
+\newblock URL \url{https://arxiv.org/abs/2406.11695}.
+
+\bibitem[Patel et~al.(2024)Patel, Raffel, and Callison-Burch]{patel2024datadreamertoolsyntheticdata}
+Ajay Patel, Colin Raffel, and Chris Callison-Burch.
+\newblock Datadreamer: A tool for synthetic data generation and reproducible llm workflows, 2024.
+\newblock URL \url{https://arxiv.org/abs/2402.10379}.
+
+\bibitem[Perez et~al.(2022)Perez, Huang, Song, Cai, Ring, Aslanides, Glaese, McAleese, and Irving]{perez2022redteaminglanguagemodels}
+Ethan Perez, Saffron Huang, Francis Song, Trevor Cai, Roman Ring, John Aslanides, Amelia Glaese, Nat McAleese, and Geoffrey Irving.
+\newblock Red teaming language models with language models, 2022.
+\newblock URL \url{https://arxiv.org/abs/2202.03286}.
+
+\bibitem[Press(2021)]{ng2021datacentricai}
+Gil Press.
+\newblock Andrew {Ng} launches a campaign for data-centric {AI}.
+\newblock \emph{Forbes}, jun 2021.
+\newblock URL \url{https://www.forbes.com/sites/gilpress/2021/06/16/andrew-ng-launches-a-campaign-for-data-centric-ai/}.
+\newblock Accessed: 2024-06-30.
+
+\bibitem[Pryzant et~al.(2023)Pryzant, Iter, Li, Lee, Zhu, and Zeng]{pryzant2023automaticpromptoptimizationgradient}
+Reid Pryzant, Dan Iter, Jerry Li, Yin~Tat Lee, Chenguang Zhu, and Michael Zeng.
+\newblock Automatic prompt optimization with "gradient descent" and beam search, 2023.
+\newblock URL \url{https://arxiv.org/abs/2305.03495}.
+
+\bibitem[Sennrich et~al.(2016)Sennrich, Haddow, and Birch]{sennrich2016improvingneuralmachinetranslation}
+Rico Sennrich, Barry Haddow, and Alexandra Birch.
+\newblock Improving neural machine translation models with monolingual data, 2016.
+\newblock URL \url{https://arxiv.org/abs/1511.06709}.
+
+\bibitem[Shi et~al.(2025)Shi, Wang, Nie, Li, Ye, Wen, and Jin]{shi2025timemoebillionscaletimeseries}
+Xiaoming Shi, Shiyu Wang, Yuqi Nie, Dianqi Li, Zhou Ye, Qingsong Wen, and Ming Jin.
+\newblock Time-moe: Billion-scale time series foundation models with mixture of experts, 2025.
+\newblock URL \url{https://arxiv.org/abs/2409.16040}.
+
+\bibitem[Shin et~al.(2020)Shin, Razeghi, IV, Wallace, and Singh]{shin2020autopromptelicitingknowledgelanguage}
+Taylor Shin, Yasaman Razeghi, Robert L.~Logan IV, Eric Wallace, and Sameer Singh.
+\newblock Autoprompt: Eliciting knowledge from language models with automatically generated prompts, 2020.
+\newblock URL \url{https://arxiv.org/abs/2010.15980}.
+
+\bibitem[Wei et~al.(2023)Wei, Wang, Schuurmans, Bosma, Ichter, Xia, Chi, Le, and Zhou]{wei2023chainofthoughtpromptingelicitsreasoning}
+Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten Bosma, Brian Ichter, Fei Xia, Ed~Chi, Quoc Le, and Denny Zhou.
+\newblock Chain-of-thought prompting elicits reasoning in large language models, 2023.
+\newblock URL \url{https://arxiv.org/abs/2201.11903}.
+
+\bibitem[Williams et~al.(2025)Williams, Ashok, Étienne Marcotte, Zantedeschi, Subramanian, Riachi, Requeima, Lacoste, Rish, Chapados, and Drouin]{williams2025contextkeybenchmarkforecasting}
+Andrew~Robert Williams, Arjun Ashok, Étienne Marcotte, Valentina Zantedeschi, Jithendaraa Subramanian, Roland Riachi, James Requeima, Alexandre Lacoste, Irina Rish, Nicolas Chapados, and Alexandre Drouin.
+\newblock Context is key: A benchmark for forecasting with essential textual information, 2025.
+\newblock URL \url{https://arxiv.org/abs/2410.18959}.
+
+\bibitem[Wu et~al.(2024)Wu, Gao, Zhu, Zhou, Sun, Yang, Lou, Ding, and Yang]{wu2024stragoharnessingstrategicguidance}
+Yurong Wu, Yan Gao, Bin~Benjamin Zhu, Zineng Zhou, Xiaodi Sun, Sheng Yang, Jian-Guang Lou, Zhiming Ding, and Linjun Yang.
+\newblock Strago: Harnessing strategic guidance for prompt optimization, 2024.
+\newblock URL \url{https://arxiv.org/abs/2410.08601}.
+
+\bibitem[Xiao et~al.(2025)Xiao, Zhou, Xiao, Lu, Zhang, and Xiong]{xiao2025timefoundfoundationmodeltime}
+Congxi Xiao, Jingbo Zhou, Yixiong Xiao, Xinjiang Lu, Le~Zhang, and Hui Xiong.
+\newblock Timefound: A foundation model for time series forecasting, 2025.
+\newblock URL \url{https://arxiv.org/abs/2503.04118}.
+
+\bibitem[Yang et~al.(2024)Yang, Wang, Lu, Liu, Le, Zhou, and Chen]{yang2024largelanguagemodelsoptimizers}
+Chengrun Yang, Xuezhi Wang, Yifeng Lu, Hanxiao Liu, Quoc~V. Le, Denny Zhou, and Xinyun Chen.
+\newblock Large language models as optimizers, 2024.
+\newblock URL \url{https://arxiv.org/abs/2309.03409}.
+
+\bibitem[Yu et~al.(2024)Yu, Lee, Lee, and Yoon]{yu2024controlledtextgenerationblackbox}
+Sangwon Yu, Changmin Lee, Hojin Lee, and Sungroh Yoon.
+\newblock Controlled text generation for black-box language models via score-based progressive editor, 2024.
+\newblock URL \url{https://arxiv.org/abs/2311.07430}.
+
+\bibitem[Yu et~al.(2023)Yu, Zhuang, Zhang, Meng, Ratner, Krishna, Shen, and Zhang]{yu2023largelanguagemodelattributed}
+Yue Yu, Yuchen Zhuang, Jieyu Zhang, Yu~Meng, Alexander Ratner, Ranjay Krishna, Jiaming Shen, and Chao Zhang.
+\newblock Large language model as attributed training data generator: A tale of diversity and bias, 2023.
+\newblock URL \url{https://arxiv.org/abs/2306.15895}.
+
+\bibitem[Zhang et~al.(2024)Zhang, Lin, Tong, Hou, Zhang, Li, and Wang]{zhang2024lightweightmultiaspectcontrolled}
+Chenyang Zhang, Jiayi Lin, Haibo Tong, Bingxuan Hou, Dongyu Zhang, Jialin Li, and Junli Wang.
+\newblock A lightweight multi aspect controlled text generation solution for large language models, 2024.
+\newblock URL \url{https://arxiv.org/abs/2410.14144}.
+
+\bibitem[Zhao et~al.(2025)Zhao, Yoon, Park, Jha, Yoo, and Qian]{zhao2025pareto}
+Guang Zhao, Byung-Jun Yoon, Gilchan Park, Shantenu Jha, Shinjae Yoo, and Xiaoning Qian.
+\newblock Pareto prompt optimization.
+\newblock In \emph{The Thirteenth International Conference on Learning Representations}, 2025.
+\newblock URL \url{https://openreview.net/forum?id=HGCk5aaSvE}.
+
+\end{thebibliography}
